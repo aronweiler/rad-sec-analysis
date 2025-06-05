@@ -1,0 +1,107 @@
+# RAD Security Analysis - Default Configuration
+# This configuration supports dynamic LLM selection per stage, along with some other configurations.
+
+# Global Application Settings
+debug: false
+log_level: "INFO"
+
+incident_parser: "json_v1"
+
+# Token Management
+global_token_budget: null  # No global limit by default
+enable_token_tracking: true
+
+# Caching Configuration
+cache_backend: "memory"
+cache_config:
+  memory:
+    max_size: 1000
+    ttl_seconds: 3600
+  # these are not used, but included for completeness
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+  file:
+    cache_dir: "./cache"
+    max_files: 1000
+
+# Stage Configurations
+# Each stage can use a different LLM provider and model
+stages:
+  initial_incident_and_cve_analysis:
+    stage: "initial_incident_and_cve_analysis"
+    enabled: true
+    llm_config:
+      provider: "openai"
+      model_name: "gpt-4o"
+      temperature: 0.1
+      max_tokens: 2000
+      timeout: 30
+      max_retries: 3
+      extra_params:
+        top_p: 0.9
+        frequency_penalty: 0.0
+    system_message: |
+      You are a cybersecurity analyst specializing in incident context analysis.
+      Your role is to extract and analyze key contextual factors from security incidents.
+      Focus on identifying critical assets, attack patterns, and environmental factors.
+    token_budget: 2000
+    enable_caching: true
+    cache_ttl: 3600
+    max_iterations: 5
+
+  prioritized_risk_and_impact_assessment:
+    stage: "prioritized_risk_and_impact_assessment"
+    enabled: true
+    llm_config:
+      provider: "anthropic"
+      model_name: "claude-sonnet-4-0"
+      temperature: 0.0
+      max_tokens: 3000
+      timeout: 45
+      max_retries: 3
+      extra_params:
+        top_k: 40
+    system_message: |
+      You are a vulnerability research specialist with deep knowledge of CVE databases.
+      Your role is to identify relevant CVEs based on incident context and affected systems.
+      Prioritize accuracy and relevance in your CVE matching process.
+    token_budget: 3000
+    enable_caching: true
+    cache_ttl: 7200
+    max_iterations: 1
+
+  final_incident_analysis:
+    stage: "final_incident_analysis"
+    enabled: true
+    llm_config:
+      provider: "openai"
+      model_name: "gpt-4.1"
+      temperature: 0.2
+      max_tokens: 2500
+      timeout: 60
+      max_retries: 3
+      extra_params:
+        top_p: 0.95
+    system_message: |
+      You are a senior cybersecurity risk analyst with expertise in threat assessment.
+      Your role is to evaluate the risk level of security incidents considering business impact,
+      technical complexity, and threat landscape factors.
+    token_budget: 2500
+    enable_caching: true
+    cache_ttl: 1800
+    max_iterations: 1
+
+
+# MCP Server Configurations
+mcp_servers:
+  vulnerability_intelligence:
+    name: "vulnerability_intelligence"
+    host: "localhost"  
+    port: 8000
+    transport_type: "streamable_http"
+    command: []  # Not needed for external server
+    enabled: true
+    timeout: 30
+    env_vars: {}
