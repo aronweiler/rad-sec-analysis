@@ -32,6 +32,14 @@ class StageConfig(BaseModel):
         None, description="Maximum number of iterations for this stage"
     )
 
+    # Tool and MCP server access control
+    available_tools: Optional[List[str]] = Field(
+        None, description="List of tool names available to this stage"
+    )
+    available_mcp_servers: Optional[List[str]] = Field(
+        None, description="List of MCP server names available to this stage"
+    )
+
     class Config:
         schema_extra = {
             "example": {
@@ -42,9 +50,10 @@ class StageConfig(BaseModel):
                     "temperature": 0.1,
                 },
                 "enabled": True,
-                "system_message": "You are a cybersecurity analyst specializing in incident context analysis.",
                 "token_budget": 1000,
                 "enable_caching": True,
                 "max_iterations": 5,
+                "available_tools": ["nvd_tool", "vulnerability_scanner"],
+                "available_mcp_servers": ["vulnerability_intelligence"],
             }
         }

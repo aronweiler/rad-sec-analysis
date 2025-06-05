@@ -42,15 +42,12 @@ stages:
       extra_params:
         top_p: 0.9
         frequency_penalty: 0.0
-    system_message: |
-      You are a cybersecurity analyst specializing in incident context analysis.
-      Your role is to extract and analyze key contextual factors from security incidents.
-      Focus on identifying critical assets, attack patterns, and environmental factors.
     token_budget: 2000
     enable_caching: true
     cache_ttl: 3600
     max_iterations: 5
-
+    available_tools: ["nvd_tool"]
+    available_mcp_servers: ["vulnerability_intelligence"]
   prioritized_risk_and_impact_assessment:
     stage: "prioritized_risk_and_impact_assessment"
     enabled: true
@@ -63,14 +60,11 @@ stages:
       max_retries: 3
       extra_params:
         top_k: 40
-    system_message: |
-      You are a vulnerability research specialist with deep knowledge of CVE databases.
-      Your role is to identify relevant CVEs based on incident context and affected systems.
-      Prioritize accuracy and relevance in your CVE matching process.
     token_budget: 3000
     enable_caching: true
     cache_ttl: 7200
     max_iterations: 1
+    available_tools: ["risk_calculator", "impact_analyzer"]
 
   final_incident_analysis:
     stage: "final_incident_analysis"
@@ -84,15 +78,12 @@ stages:
       max_retries: 3
       extra_params:
         top_p: 0.95
-    system_message: |
-      You are a senior cybersecurity risk analyst with expertise in threat assessment.
-      Your role is to evaluate the risk level of security incidents considering business impact,
-      technical complexity, and threat landscape factors.
     token_budget: 2500
     enable_caching: true
     cache_ttl: 1800
     max_iterations: 1
-
+    available_tools: ["report_generator", "summary_tool"]
+    
 
 # MCP Server Configurations
 mcp_servers:

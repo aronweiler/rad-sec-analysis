@@ -28,7 +28,7 @@ async def _parse_incidents_from_file(
     try:
         # Default file path if not provided
         if file_path is None:
-            file_path = "incidents.json"  # Adjust default path as needed
+            file_path = "data/incident_data.json" 
 
         # Check if file exists
         from pathlib import Path
@@ -42,12 +42,6 @@ async def _parse_incidents_from_file(
             return {}, []
 
         logger.info(f"Loading incidents from: {file_path}")
-
-        # # Load configuration
-        # config_loader = ConfigLoader()
-        # config = config_loader.create_default_config()
-
-        # Initialize parser manager
         
         parser_manager = IncidentParserManager(parser_name)
 
