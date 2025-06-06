@@ -324,6 +324,11 @@ async def main():
         # Report generator
         generator = MarkdownReportGenerator()
 
+        # Get the stage configuration for incident preprocessing
+        pre_processing_stage_config = config.get_stage_config(
+            stage=Stage.INCIDENT_PRE_PROCESSING
+        )
+
         # Evaluate each of the parsed incidents
         for parsed in parsed_incidents:
             if not parsed.success:
@@ -335,7 +340,7 @@ async def main():
             # Generate initial vulnerability report using NVD
             incident_vulnerability_report = nvd.analyze_incident_vulnerabilities(
                 incident=parsed.incident,
-                strict_version_matching=config.get_stage_config(stage=Stage.INCIDENT_PRE_PROCESSING).strict_version_matching,
+                strict_version_matching=pre_processing_stage_config.strict_version_matching,
             )
 
             logger.info("Initial NVD vulnerability report:")
@@ -363,6 +368,10 @@ async def main():
                     Path(args.output_dir) / f"{parsed.incident.incident_id}_report.md"
                 )
                 generator.save_report(analysis_result, output_path)
+                # Also create a customer-facing report
+                generator.save_customer_report(
+                    analysis_result, output_path.replace("_report.md", "_customer_report.md")
+                )
             else:
                 logger.warning("Parsed incident is None, skipping report generation.")
 

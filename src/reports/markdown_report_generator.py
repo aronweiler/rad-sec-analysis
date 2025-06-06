@@ -552,6 +552,164 @@ The AI agent followed this analytical process:
 
         return section
     
+    def generate_customer_report(self, verification_result: AnalysisVerificationResult) -> str:
+        """Generate a concise, customer-facing incident report"""
+
+        analysis = verification_result.analysis
+
+        # Calculate key metrics
+        all_cves = analysis.identified_cves + analysis.additional_cves_found
+        critical_cves = [cve for cve in all_cves if cve.exploitation_likelihood in [ExploitationLikelihood.VERY_HIGH, ExploitationLikelihood.HIGH]]
+        high_risk_assets = [asset for asset in analysis.asset_risk_assessments if asset.overall_risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH]]
+
+        # Get immediate actions count
+        immediate_actions_count = len(analysis.immediate_actions)
+
+        report = f"""# Security Incident Analysis Report
+
+    **Incident ID:** {analysis.incident_id}  
+    **Analysis Date:** {analysis.analysis_timestamp.strftime('%B %d, %Y')}  
+    **Overall Risk Level:** {self.risk_level_icons[analysis.overall_risk_assessment]} **{analysis.overall_risk_assessment.value.upper()}**
+
+    ---
+
+    ## Executive Summary
+
+    {analysis.executive_summary}
+
+    ## Key Findings
+
+    ### Security Impact
+    - **{len(all_cves)} vulnerabilities** identified across your systems
+    - **{len(critical_cves)} high-priority vulnerabilities** require immediate attention
+    - **{len(analysis.asset_risk_assessments)} systems** were analyzed for security impact
+    - **{len(high_risk_assets)} systems** are at elevated risk and need priority remediation
+
+    ### Attack Assessment
+    {analysis.attack_sophistication}
+
+    ## Critical Vulnerabilities Requiring Immediate Attention
+
+    """
+
+        if critical_cves:
+            # Sort by mitigation priority
+            sorted_critical = sorted(critical_cves, key=lambda x: x.mitigation_priority, reverse=True)
+
+            report += "| Vulnerability | Risk Level | Affected Systems | Priority |\n"
+            report += "|---------------|------------|------------------|----------|\n"
+
+            for cve in sorted_critical[:5]:  # Top 5 critical CVEs
+                risk_icon = self.exploitation_icons[cve.exploitation_likelihood]
+                affected_systems = ", ".join(cve.affected_software[:2])
+                if len(cve.affected_software) > 2:
+                    affected_systems += f" (+{len(cve.affected_software)-2} more)"
+
+                report += f"| {cve.cve_id} | {risk_icon} {cve.exploitation_likelihood.value.title()} | {affected_systems} | {cve.mitigation_priority}/10 |\n"
+
+            if len(critical_cves) > 5:
+                report += f"\n*{len(critical_cves) - 5} additional critical vulnerabilities identified in the full technical report.*\n"
+        else:
+            report += "*No critical vulnerabilities requiring immediate attention were identified.*\n"
+
+        report += """
+
+    ## Systems Requiring Priority Attention
+
+    """
+
+        if high_risk_assets:
+            for asset in sorted(high_risk_assets, key=lambda x: x.overall_risk_level.value):
+                risk_icon = self.risk_level_icons[asset.overall_risk_level]
+                report += f"### {risk_icon} {asset.hostname}\n"
+                report += f"**Function:** {asset.role}  \n"
+                report += f"**Risk Level:** {asset.overall_risk_level.value.title()}  \n"
+                report += f"**Business Impact:** {asset.business_impact_potential}  \n"
+
+                if asset.critical_vulnerabilities:
+                    report += f"**Critical Issues:** {len(asset.critical_vulnerabilities)} vulnerabilities need immediate patching  \n"
+
+                report += "\n"
+        else:
+            report += "*All analyzed systems are at acceptable risk levels.*\n"
+
+        report += f"""
+
+    ## Recommended Actions
+
+    We have identified **{immediate_actions_count} immediate actions** to improve your security posture:
+
+    """
+
+        if analysis.immediate_actions:
+            # Sort by priority and show top actions
+            sorted_actions = sorted(analysis.immediate_actions, key=lambda x: x.priority, reverse=True)
+
+            for i, action in enumerate(sorted_actions[:3], 1):  # Top 3 actions
+                report += f"**{i}. {action.action}** (Priority: {action.priority}/10)\n"
+                report += f"   - *Why this matters:* {action.rationale}\n"
+                report += f"   - *Estimated effort:* {action.estimated_effort}\n"
+                report += f"   - *Risk reduction:* {action.risk_reduction}\n\n"
+
+            if len(analysis.immediate_actions) > 3:
+                report += f"*{len(analysis.immediate_actions) - 3} additional recommendations are detailed in the full technical report.*\n\n"
+        else:
+            report += "*No immediate actions required at this time.*\n\n"
+
+        # Add timeline if attack progression is available
+        if analysis.attack_progression:
+            report += f"""## Incident Timeline
+
+    {analysis.attack_progression}
+
+    """
+
+        # Add next steps
+        report += """## Next Steps
+
+    1. **Review and prioritize** the recommended actions based on your business requirements
+    2. **Implement immediate security measures** for high-priority vulnerabilities
+    3. **Schedule remediation activities** according to the priority levels identified
+    4. **Monitor systems** for any signs of ongoing compromise
+
+    """
+
+        # Add contact/support section
+        report += f"""## Additional Information
+
+    - **Analysis Confidence Level:** {analysis.analyst_confidence}/10
+    - **Validation Status:** {'✅ Verified' if verification_result.validation_passed else '⚠️ Requires Review'}
+
+    For detailed technical information, implementation guidance, or questions about this analysis, please refer to the comprehensive technical report or contact your security team.
+
+    ---
+
+    *Report generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p UTC')} using AI-powered security analysis.*  
+    *This analysis is based on available data at the time of assessment. Regular security reviews are recommended.*"""
+
+        return report
+
+    def save_customer_report(self, verification_result: AnalysisVerificationResult, output_path: str = None) -> str:
+        """Generate and save the customer-facing report to a file"""
+
+        report_content = self.generate_customer_report(verification_result)
+
+        if output_path is None:
+            # Generate default filename
+            incident_id = verification_result.analysis.incident_id
+            timestamp = verification_result.analysis.analysis_timestamp.strftime('%Y%m%d_%H%M%S')
+            output_path = f"customer_incident_report_{incident_id}_{timestamp}.md"
+
+        # Ensure output directory exists
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write the report
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(report_content)
+
+        return str(output_file)
+    
     def save_report(self, verification_result: AnalysisVerificationResult, output_path: str = None) -> str:
         """Generate and save the markdown report to a file"""
 
