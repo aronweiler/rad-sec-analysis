@@ -306,7 +306,7 @@ def submit_initial_analysis_final_answer(
     key_indicators: Optional[List[str]] = None,
     immediate_actions_needed: Optional[List[str]] = None,
     investigation_rationale: Optional[str] = None,
-) -> str:
+) -> InitialAnalysisResult:
     """
     Submit your analysis for the incident CVE data once you have completed your initial investigation.
 
@@ -348,28 +348,7 @@ def submit_initial_analysis_final_answer(
             incident_vulnerability_report=incident_vulnerability_report,
         )
 
-        # Convert to JSON for return
-        result_dict = analysis_result.model_dump()
-        result_dict["analysis_timestamp"] = (
-            analysis_result.analysis_timestamp.isoformat()
-        )
-
-        # Add validation summary
-        validation_summary = {
-            "validation_status": "PASSED",
-            "assets_analyzed": len(affected_assets_analysis),
-            "ttps_identified": len(observed_ttps_analysis),
-            "cves_analyzed": len(relevant_cves),
-            "overall_severity": overall_severity,
-        }
-
-        final_result = {
-            "stage": "initial_incident_and_cve_analysis",
-            "analysis_result": result_dict,
-            "validation_summary": validation_summary,
-        }
-
-        return json.dumps(final_result, indent=2)
+        return analysis_result
 
     except Exception as e:
         # Return validation error information

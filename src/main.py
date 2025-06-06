@@ -8,11 +8,13 @@ from typing import List
 
 
 from src.core.config_loader import ConfigLoader
+from src.models.stage_config import Stage
 from src.parsers.base import ParseResult
 from src.parsers import IncidentParserManager
+from src.reports.markdown_report_generator import MarkdownReportGenerator
 from src.tools.mcp_client_manager import MCPClientManager
 from src.tools.nvd_tool import NVDTool
-from src.lg_workflows.initial_analysis_workflow import create_initial_analysis_workflow
+from src.lc_workflows.initial_analysis_workflow import InitialAnalysisWorkflow
 
 # Configure logging
 logging.basicConfig(
@@ -253,7 +255,7 @@ async def _parse_incidents_from_file(
 async def main():
     """Main entry point for the application."""
     mcp_client_manager = None
-    
+
     try:
         # Parse command line arguments
         parser = argparse.ArgumentParser(
@@ -265,6 +267,13 @@ async def main():
             type=str,
             default="incidents.json",
             help="Path to the incidents file (default: incidents.json)",
+        )
+        parser.add_argument(
+            "--output-dir",
+            "-o",
+            type=str,
+            default="output",
+            help="Path to the output directory (default: output)",
         )
         parser.add_argument(
             "--config",
@@ -303,14 +312,17 @@ async def main():
             logger.info("No MCP servers configured")
 
         # Create the initial analysis workflow
-        initial_analysis_workflow = await create_initial_analysis_workflow(
-            config, mcp_client_manager
+        initial_analysis_workflow = InitialAnalysisWorkflow(
+            config=config, mcp_client_manager=mcp_client_manager
         )
 
         # Parse incidents from file
         statistics, parsed_incidents = await _parse_incidents_from_file(
             args.file, config.incident_parser
         )
+
+        # Report generator
+        generator = MarkdownReportGenerator()
 
         # Evaluate each of the parsed incidents
         for parsed in parsed_incidents:
@@ -322,7 +334,8 @@ async def main():
 
             # Generate initial vulnerability report using NVD
             incident_vulnerability_report = nvd.analyze_incident_vulnerabilities(
-                parsed.incident
+                incident=parsed.incident,
+                strict_version_matching=config.get_stage_config(stage=Stage.INCIDENT_PRE_PROCESSING).strict_version_matching,
             )
 
             logger.info("Initial NVD vulnerability report:")
@@ -332,16 +345,26 @@ async def main():
                 )
             )
 
-            # Run the LangGraph workflow for initial analysis
+            # Run the workflow for initial analysis
             logger.info(
-                f"Starting LangGraph workflow for incident: {incident_vulnerability_report.incident_id}"
-            )
-            workflow_result = await initial_analysis_workflow.run_analysis(
-                incident_vulnerability_report
+                f"Starting workflow for incident: {incident_vulnerability_report.incident_id}"
             )
 
-            logger.info("LangGraph workflow completed:")
-            logger.info(json.dumps(workflow_result, indent=2))
+            analysis_result = await initial_analysis_workflow.run_analysis(
+                incident_vulnerability_report=incident_vulnerability_report,
+                incident_data=parsed.incident,
+            )
+
+            logger.info("Initial analysis workflow completed:")
+            logger.info(analysis_result.model_dump_json(indent=2))
+
+            if parsed.incident is not None:
+                output_path = str(
+                    Path(args.output_dir) / f"{parsed.incident.incident_id}_report.md"
+                )
+                generator.save_report(analysis_result, output_path)
+            else:
+                logger.warning("Parsed incident is None, skipping report generation.")
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)

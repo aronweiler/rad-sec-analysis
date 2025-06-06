@@ -182,10 +182,11 @@ def _register_default_tools():
     """Register default tools from nvd_tool_wrappers"""
     try:
         from .nvd_tool_wrappers import nvd_tools
+        from .submit_analysis_tool import submit_analysis_tools
         from .initial_analysis_stage_tools import initial_analysis_stage_tools
         
-        # Combine the tool arrays into a new single list
-        tools_to_register = initial_analysis_stage_tools + nvd_tools
+        # Register all tools
+        tools_to_register = nvd_tools + submit_analysis_tools + initial_analysis_stage_tools
         
         registry = get_tool_registry()
         

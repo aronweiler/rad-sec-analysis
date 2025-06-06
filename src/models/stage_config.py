@@ -8,6 +8,7 @@ class Stage(str, Enum):
     """Stages in the analysis pipeline"""
 
     INITIAL_INCIDENT_AND_CVE_ANALYSIS = "initial_incident_and_cve_analysis"
+    INCIDENT_PRE_PROCESSING = "incident_pre_processing"
     PRIORITIZED_RISK_AND_IMPACT_ASSESSMENT = "prioritized_risk_and_impact_assessment"
     FINAL_INCIDENT_ANALYSIS = "final_incident_analysis"
 
@@ -15,7 +16,7 @@ class StageConfig(BaseModel):
     """Configuration for a specific stage"""
 
     stage: Stage = Field(..., description="Stage identifier")
-    llm_config: LLMConfig = Field(..., description="LLM configuration for this stage")
+    llm_config: Optional[LLMConfig] = Field(None, description="LLM configuration for this stage")
     enabled: bool = Field(True, description="Whether this stage is enabled")
 
     # Stage-specific settings
@@ -23,10 +24,14 @@ class StageConfig(BaseModel):
         None, description="Maximum context length for this stage"
     )
 
+    strict_version_matching: Optional[bool] = Field(
+        False, description="Enable strict version matching for tools"
+    )
+    
     # Token management
     token_budget: Optional[int] = Field(None, description="Token budget for this stage")
-    enable_caching: bool = Field(True, description="Enable response caching")
-    cache_ttl: int = Field(3600, description="Cache TTL in seconds")
+    enable_caching: Optional[bool] = Field(True, description="Enable response caching")
+    cache_ttl: Optional[int] = Field(3600, description="Cache TTL in seconds")
     
     max_iterations: Optional[int] = Field(
         None, description="Maximum number of iterations for this stage"
@@ -50,6 +55,7 @@ class StageConfig(BaseModel):
                     "temperature": 0.1,
                 },
                 "enabled": True,
+                "strict_version_matching": True,
                 "token_budget": 1000,
                 "enable_caching": True,
                 "max_iterations": 5,

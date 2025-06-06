@@ -16,9 +16,9 @@ from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.tools import BaseTool
-
-from src.models.incident import IncidentData
 from src.tools.lc_tools.tool_manager import get_tool, get_tool_function
+from src.models.incident import IncidentData
+
 
 from ..models.application_config import ApplicationConfig
 from ..models.stage_config import Stage, StageConfig

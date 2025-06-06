@@ -24,7 +24,9 @@
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "args": [
         "-f",
-        "C:\\Repos\\rad-sec\\data\\incident_data.json"
+        "C:\\Repos\\rad-sec-analysis\\data\\incident_data.json",
+        "-o",
+        "C:\\Repos\\rad-sec-analysis\\output"
       ],
       "env": {
         "PYTHONPATH": "${workspaceFolder}"

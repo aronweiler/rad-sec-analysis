@@ -27,8 +27,13 @@ cache_config:
     max_files: 1000
 
 # Stage Configurations
-# Each stage can use a different LLM provider and model
+# Each stage can use a different LLM provider and model (or none at all).
 stages:
+  incident_pre_processing:
+    stage: "incident_pre_processing"
+    enabled: true
+    strict_version_matching: true # strict version matching for CVEs
+
   initial_incident_and_cve_analysis:
     stage: "initial_incident_and_cve_analysis"
     enabled: true
@@ -45,45 +50,46 @@ stages:
     token_budget: 2000
     enable_caching: true
     cache_ttl: 3600
-    max_iterations: 15
-    available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_initial_analysis_final_answer"]
+    max_iterations: 5
+    available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_analysis"]
     available_mcp_servers: ["vulnerability_intelligence"]
 
-  prioritized_risk_and_impact_assessment:
-    stage: "prioritized_risk_and_impact_assessment"
-    enabled: true
-    llm_config:
-      provider: "anthropic"
-      model_name: "claude-sonnet-4-0"
-      temperature: 0.0
-      max_tokens: 3000
-      timeout: 45
-      max_retries: 3
-      extra_params:
-        top_k: 40
-    token_budget: 3000
-    enable_caching: true
-    cache_ttl: 7200
-    max_iterations: 1
-    available_tools: ["risk_calculator", "impact_analyzer"]
+  # Other possible stages- if we were to extend the pipeline
+  # prioritized_risk_and_impact_assessment:
+  #   stage: "prioritized_risk_and_impact_assessment"
+  #   enabled: true
+  #   llm_config:
+  #     provider: "anthropic"
+  #     model_name: "claude-sonnet-4-0"
+  #     temperature: 0.0
+  #     max_tokens: 3000
+  #     timeout: 45
+  #     max_retries: 3
+  #     extra_params:
+  #       top_k: 40
+  #   token_budget: 3000
+  #   enable_caching: true
+  #   cache_ttl: 7200
+  #   max_iterations: 1
+  #   available_tools: ["risk_calculator", "impact_analyzer"]
 
-  final_incident_analysis:
-    stage: "final_incident_analysis"
-    enabled: true
-    llm_config:
-      provider: "openai"
-      model_name: "gpt-4.1"
-      temperature: 0.2
-      max_tokens: 2500
-      timeout: 60
-      max_retries: 3
-      extra_params:
-        top_p: 0.95
-    token_budget: 2500
-    enable_caching: true
-    cache_ttl: 1800
-    max_iterations: 1
-    available_tools: ["report_generator", "summary_tool"]
+  # final_incident_analysis:
+  #   stage: "final_incident_analysis"
+  #   enabled: true
+  #   llm_config:
+  #     provider: "openai"
+  #     model_name: "gpt-4.1"
+  #     temperature: 0.2
+  #     max_tokens: 2500
+  #     timeout: 60
+  #     max_retries: 3
+  #     extra_params:
+  #       top_p: 0.95
+  #   token_budget: 2500
+  #   enable_caching: true
+  #   cache_ttl: 1800
+  #   max_iterations: 1
+  #   available_tools: ["report_generator", "summary_tool"]
     
 
 # MCP Server Configurations

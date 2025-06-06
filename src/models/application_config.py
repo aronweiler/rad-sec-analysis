@@ -50,8 +50,7 @@ class ApplicationConfig(BaseModel):
         """Ensure all required stages are configured"""
         required_stages = {
             Stage.INITIAL_INCIDENT_AND_CVE_ANALYSIS,
-            Stage.PRIORITIZED_RISK_AND_IMPACT_ASSESSMENT,
-            Stage.FINAL_INCIDENT_ANALYSIS,
+            Stage.INCIDENT_PRE_PROCESSING,
         }
 
         configured_stages = set(v.keys())
