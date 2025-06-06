@@ -45,9 +45,10 @@ stages:
     token_budget: 2000
     enable_caching: true
     cache_ttl: 3600
-    max_iterations: 5
-    available_tools: ["nvd_tool"]
+    max_iterations: 15
+    available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_initial_analysis_final_answer"]
     available_mcp_servers: ["vulnerability_intelligence"]
+
   prioritized_risk_and_impact_assessment:
     stage: "prioritized_risk_and_impact_assessment"
     enabled: true

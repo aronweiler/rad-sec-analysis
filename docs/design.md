@@ -44,7 +44,9 @@
 - Prompts for the application are stored in the `src/prompts` folder, each prompt stored as its own individual `.py` file
 
 ### Tools
-Tools are located in the `src/tools` folder.
+Tools are located in the `src/tools` folder.  LangChain tools / tool wrappers are in the `src/tools/lc_tools` folder, and are registered in the `src/tools/lc_tools/tool_manager.py` file.
+
+The tools that are available to each stage are set in the configuration.
 
 **NVD Tool**:
 - The NVD tool (`src/tools/nvd_tool.py`) is a direct-access tool using the NVD 2.0 API, requiring an API key for less rate limiting
@@ -84,3 +86,4 @@ Stage tools contain specific design features that are geared towards verifying a
   - Final analysis of the incident
   - Recommendations for fixing / patching
   - Relevant links to external sources
+    - MITRE https://attack.mitre.org/techniques/[TECHNIQUE_ID]/

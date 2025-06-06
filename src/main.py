@@ -10,7 +10,9 @@ from typing import List
 from src.core.config_loader import ConfigLoader
 from src.parsers.base import ParseResult
 from src.parsers import IncidentParserManager
+from src.tools.mcp_client_manager import MCPClientManager
 from src.tools.nvd_tool import NVDTool
+from src.lg_workflows.initial_analysis_workflow import create_initial_analysis_workflow
 
 # Configure logging
 logging.basicConfig(
@@ -28,7 +30,7 @@ async def _parse_incidents_from_file(
     try:
         # Default file path if not provided
         if file_path is None:
-            file_path = "data/incident_data.json" 
+            file_path = "data/incident_data.json"
 
         # Check if file exists
         from pathlib import Path
@@ -42,7 +44,7 @@ async def _parse_incidents_from_file(
             return {}, []
 
         logger.info(f"Loading incidents from: {file_path}")
-        
+
         parser_manager = IncidentParserManager(parser_name)
 
         # Load file content
@@ -250,9 +252,9 @@ async def _parse_incidents_from_file(
 
 async def main():
     """Main entry point for the application."""
+    mcp_client_manager = None
+    
     try:
-        
-
         # Parse command line arguments
         parser = argparse.ArgumentParser(
             description="Parse security incidents from a file"
@@ -292,23 +294,63 @@ async def main():
         # Create the NVD tool instance
         nvd = NVDTool()
 
+        # Initialize MCP Client Manager
+        mcp_client_manager = MCPClientManager()
+        if config.get_enabled_mcp_servers():
+            await mcp_client_manager.initialize(config.get_enabled_mcp_servers())
+            logger.info("MCP Client Manager initialized")
+        else:
+            logger.info("No MCP servers configured")
+
+        # Create the initial analysis workflow
+        initial_analysis_workflow = await create_initial_analysis_workflow(
+            config, mcp_client_manager
+        )
+
         # Parse incidents from file
-        statistics, parsed_incidents = await _parse_incidents_from_file(args.file, config.incident_parser)
+        statistics, parsed_incidents = await _parse_incidents_from_file(
+            args.file, config.incident_parser
+        )
 
         # Evaluate each of the parsed incidents
         for parsed in parsed_incidents:
             if not parsed.success:
-                logger.warning(f"Skipping incident due to parsing errors: {'\n'.join([i.message for i in parsed.issues])}")
+                logger.warning(
+                    f"Skipping incident due to parsing errors: {'\n'.join([i.message for i in parsed.issues])}"
+                )
                 continue
-            
-            incident_vulnerability_report = nvd.analyze_incident_vulnerabilities(parsed.incident)
-            
-            logger.info(json.dumps(nvd.export_report_to_dict(incident_vulnerability_report), indent=2))
-            
-            
+
+            # Generate initial vulnerability report using NVD
+            incident_vulnerability_report = nvd.analyze_incident_vulnerabilities(
+                parsed.incident
+            )
+
+            logger.info("Initial NVD vulnerability report:")
+            logger.info(
+                json.dumps(
+                    nvd.export_report_to_dict(incident_vulnerability_report), indent=2
+                )
+            )
+
+            # Run the LangGraph workflow for initial analysis
+            logger.info(
+                f"Starting LangGraph workflow for incident: {incident_vulnerability_report.incident_id}"
+            )
+            workflow_result = await initial_analysis_workflow.run_analysis(
+                incident_vulnerability_report
+            )
+
+            logger.info("LangGraph workflow completed:")
+            logger.info(json.dumps(workflow_result, indent=2))
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)
+
+    finally:
+        # Cleanup MCP connections
+        if mcp_client_manager and mcp_client_manager.is_initialized:
+            await mcp_client_manager.shutdown()
+            logger.info("MCP Client Manager shutdown")
 
 
 if __name__ == "__main__":
