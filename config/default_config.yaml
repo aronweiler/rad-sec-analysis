@@ -42,7 +42,7 @@ stages:
       provider: "openai"
       model_name: "gpt-4o"
       temperature: 0.1
-      max_tokens: 2000
+      max_tokens: 4096
       timeout: 30
       max_retries: 3
       extra_params:
@@ -51,15 +51,15 @@ stages:
     token_budget: 2000
     enable_caching: true
     cache_ttl: 3600
-    max_iterations: 5
+    max_iterations: 3
     available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_analysis"]
     available_mcp_servers: ["vulnerability_intelligence"]
 
-    report_generator:
-      stage: "report_generator"
-      enabled: true
-      settings:
-        output_directory: "./reports"
+  report_generation:
+    stage: "report_generation"
+    enabled: true
+    settings:
+      output_directory: "./reports"
 
   # Other possible stages- if we were to extend the pipeline
   # prioritized_risk_and_impact_assessment:

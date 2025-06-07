@@ -308,23 +308,23 @@ async def main():
         statistics, parsed_incidents = await _parse_incidents_from_file(
             args.file, config.incident_parser
         )
-        
+
         # print("Incident parsing statistics:", json.dumps(statistics, indent=2))
 
         # Create the stages
         stages: List[StageBase] = []
-
-        # Create the incident analysis stage
-        incident_analysis_stage = IncidentAnalysisStage(
-            config=config, mcp_client_manager=mcp_client_manager
-        )
-        stages.append(incident_analysis_stage)
 
         # Create the pre-processing stage
         pre_processing_stage = IncidentPreProcessingStage(
             config=config, mcp_client_manager=mcp_client_manager
         )
         stages.append(pre_processing_stage)
+
+        # Create the incident analysis stage
+        incident_analysis_stage = IncidentAnalysisStage(
+            config=config, mcp_client_manager=mcp_client_manager
+        )
+        stages.append(incident_analysis_stage)
 
         # Create the report generation stage
         report_stage = ReportStage(config=config, mcp_client_manager=mcp_client_manager)
@@ -343,8 +343,14 @@ async def main():
             for stage in stages:
                 logger.info(f"Running stage: {stage.stage_type.value}")
 
-                # Each stage has a run method that takes the output of the previous stage
-                stage_input = await stage.run(stage_input)
+                # Pass input to stage - handle both single values and tuples
+                if isinstance(stage_input, tuple):
+                    stage_output = await stage.run(*stage_input)
+                else:
+                    stage_output = await stage.run(stage_input)
+
+                # Prepare input for next stage
+                stage_input = stage_output
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)

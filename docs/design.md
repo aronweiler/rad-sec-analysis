@@ -26,7 +26,6 @@
 ### Tech Stack
 
 - Python
-- LangGraph
 - Docker
 - OpenAI, Anthropic
 - MCP Client/Server
@@ -55,8 +54,8 @@ MCP (Model Context Protocol) allows the dynamic discovery and use of tools, prov
 **Vulnerability Intelligence MCP Server**:
 - The Vulnerability Intelligence MCP Server is used for follow-up investigation of incident data by the AI
   - The MCP Server docker container should be running prior to running the RAD Security Pipeline
-  - The tools provided by the MCP server will be converted to langchain tools for use by LangGraph
-  - The AI will decide which tools to use in follow-up calls in the `initial_incident_and_cve_analysis` stage to investigate the incident
+  - The tools provided by the MCP server will be converted to langchain tools for use internally
+  - The AI will decide which tools to use in follow-up calls in the `initial_analysis` stage to investigate the incident
 
 
 #### Available Tools

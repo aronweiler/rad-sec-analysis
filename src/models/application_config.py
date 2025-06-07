@@ -49,7 +49,7 @@ class ApplicationConfig(BaseModel):
     def validate_required_stages(cls, v):
         """Ensure all required stages are configured"""
         required_stages = {
-            Stage.INITIAL_INCIDENT_AND_CVE_ANALYSIS,
+            Stage.INCIDENT_ANALYSIS,
             Stage.INCIDENT_PRE_PROCESSING,
         }
 

@@ -194,7 +194,7 @@ class ConfigLoader:
         try:
             # Check required stages
             required_stages = {
-                Stage.INITIAL_INCIDENT_AND_CVE_ANALYSIS,
+                Stage.INCIDENT_ANALYSIS,
                 Stage.PRIORITIZED_RISK_AND_IMPACT_ASSESSMENT,
                 Stage.FINAL_INCIDENT_ANALYSIS,
             }

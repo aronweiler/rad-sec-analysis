@@ -34,7 +34,7 @@ class IncidentAnalysisStage(StageBase):
         super().__init__(
             config=config,
             mcp_client_manager=mcp_client_manager,
-            stage_type=Stage.INITIAL_INCIDENT_AND_CVE_ANALYSIS,
+            stage_type=Stage.INCIDENT_ANALYSIS,
         )
 
         self.available_tools: Dict[str, BaseTool] = {}
@@ -83,7 +83,7 @@ class IncidentAnalysisStage(StageBase):
         self,
         incident_vulnerability_report: IncidentVulnerabilityReport,
         incident_data: IncidentData,
-    ) -> AnalysisVerificationResult:
+    ) -> tuple[AnalysisVerificationResult, IncidentData]:
         """
         Run the initial analysis workflow
 
@@ -128,7 +128,6 @@ class IncidentAnalysisStage(StageBase):
                 else None
             ),
             "software_summary": affected_assets_info,
-            "recommendations": incident_vulnerability_report.recommendations,
         }
 
         # Create initial messages
@@ -163,8 +162,11 @@ class IncidentAnalysisStage(StageBase):
         response = await llm_with_tools.ainvoke(self.messages)
         self.messages += [response]
 
-        return await self._execute_research_loop(
-            response, incident_vulnerability_report, incident_data, llm_with_tools
+        return (
+            await self._execute_research_loop(
+                response, incident_vulnerability_report, incident_data, llm_with_tools
+            ),
+            incident_data,
         )
 
     async def _execute_research_loop(
@@ -193,7 +195,7 @@ class IncidentAnalysisStage(StageBase):
             )
 
         self.logger.info(
-            f"Executing research loop iteration {current_iteration} in {Stage.INITIAL_INCIDENT_AND_CVE_ANALYSIS} stage"
+            f"Executing research loop iteration {current_iteration} in {Stage.INCIDENT_ANALYSIS} stage"
         )
 
         # This loop will execute a max number of times based on the configured max iterations in the stage config

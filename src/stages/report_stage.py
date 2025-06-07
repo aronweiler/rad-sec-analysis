@@ -27,7 +27,7 @@ class ReportStage(StageBase):
         self.report_generator = MarkdownReportGenerator()
 
     async def run(
-        self, incident: IncidentData, analysis_result: AnalysisVerificationResult
+        self, analysis_result: AnalysisVerificationResult, incident: IncidentData
     ) -> None:
         """
         Generate a report based on the analysis results

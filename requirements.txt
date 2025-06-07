@@ -3,7 +3,7 @@ langchain
 langchain-openai
 langchain-anthropic
 langchain-mcp-adapters
-langgraph
+
 
 mcp[cli]
 
