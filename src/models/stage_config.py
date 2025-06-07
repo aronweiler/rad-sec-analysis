@@ -7,10 +7,13 @@ from .llm_config import LLMConfig
 class Stage(str, Enum):
     """Stages in the analysis pipeline"""
 
-    INITIAL_INCIDENT_AND_CVE_ANALYSIS = "initial_incident_and_cve_analysis"
     INCIDENT_PRE_PROCESSING = "incident_pre_processing"
-    PRIORITIZED_RISK_AND_IMPACT_ASSESSMENT = "prioritized_risk_and_impact_assessment"
-    FINAL_INCIDENT_ANALYSIS = "final_incident_analysis"
+    INITIAL_INCIDENT_AND_CVE_ANALYSIS = "initial_incident_and_cve_analysis"
+    
+    
+    # Other stages we could add
+    # PRIORITIZED_RISK_AND_IMPACT_ASSESSMENT = "prioritized_risk_and_impact_assessment"
+    # FINAL_INCIDENT_ANALYSIS = "final_incident_analysis"
 
 class StageConfig(BaseModel):
     """Configuration for a specific stage"""

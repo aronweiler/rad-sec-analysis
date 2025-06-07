@@ -34,8 +34,8 @@ stages:
     enabled: true
     strict_version_matching: true # strict version matching for CVEs
 
-  initial_incident_and_cve_analysis:
-    stage: "initial_incident_and_cve_analysis"
+  incident_analysis:
+    stage: "incident_analysis"
     enabled: true
     llm_config:
       provider: "openai"

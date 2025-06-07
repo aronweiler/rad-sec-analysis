@@ -9,46 +9,39 @@ from src.core.llm_factory import LLMFactory
 from src.models.application_config import ApplicationConfig
 from src.models.incident import IncidentData
 from src.models.stage_config import Stage
+from src.prompts.force_final_analysis_system_prompt import (
+    FORCE_FINAL_ANALYSIS_SYSTEM_PROMPT,
+)
 from src.prompts.initial_analysis_system_prompt import INITIAL_ANALYSIS_SYSTEM_PROMPT
 from src.prompts.initial_analysis_user_prompt import INITIAL_ANALYSIS_USER_PROMPT
-from src.tools.lc_tools.initial_analysis_stage_tools import InitialAnalysisResult
-from src.tools.lc_tools.submit_analysis_tool import (
-    AnalysisVerificationResult,
-    submit_analysis,
-)
-from src.tools.lc_tools.tool_manager import get_tool, register_tool
+from src.stages.base import StageBase
+from src.tools.lc_tools.submit_analysis_tool import AnalysisVerificationResult
+from src.tools.lc_tools.tool_manager import get_tool
 from src.tools.mcp_client_manager import MCPClientManager
 from src.tools.nvd_tool import IncidentVulnerabilityReport
 
 from langchain.base_language import BaseLanguageModel
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
-from src.tools.lc_tools.tool_manager import get_tool, get_tool_function
 
 FINAL_ANSWER_TOOL_NAME = "submit_analysis"
 
 
-class InitialAnalysisWorkflow:
-    """Workflow for initial incident and CVE analysis"""
+class IncidentAnalysis(StageBase):
+    """Workflow for incident and CVE analysis"""
 
     def __init__(self, config: ApplicationConfig, mcp_client_manager: MCPClientManager):
-        self.config = config
-        self.mcp_client_manager = mcp_client_manager
-        self.stage_config = config.get_stage_config(
-            Stage.INITIAL_INCIDENT_AND_CVE_ANALYSIS
+        super().__init__(
+            config=config,
+            mcp_client_manager=mcp_client_manager,
+            stage_type=Stage.INITIAL_INCIDENT_AND_CVE_ANALYSIS,
         )
+
         self.available_tools: Dict[str, BaseTool] = {}
         self.mcp_tools_to_server: Dict[str, str] = {}
         self.messages: List[
             Union[SystemMessage, HumanMessage, AIMessage, ToolMessage]
         ] = []
-
-        if not self.stage_config:
-            raise ValueError("Initial incident and CVE analysis stage not configured")
-
-        llm_factory = LLMFactory()
-        self.llm = llm_factory.create_llm(config=self.stage_config.llm_config)
-        self.logger = logging.getLogger(__name__)
 
     async def _initialize_tools(self):
         # Add available tools by config
@@ -86,7 +79,7 @@ class InitialAnalysisWorkflow:
         if not final_answer_tool_found:
             raise ValueError("submit_analysis tool not found in available tools")
 
-    async def run_analysis(
+    async def run(
         self,
         incident_vulnerability_report: IncidentVulnerabilityReport,
         incident_data: IncidentData,
@@ -368,20 +361,11 @@ class InitialAnalysisWorkflow:
             self.logger.info("Final answer already provided, returning it")
             return final_answer
 
-        # Create a final answer prompt
+        # Create a final answer system prompt
         force_final_message = SystemMessage(
-            content="""You have reached the maximum number of iterations for this analysis. 
-                You MUST now provide your final analysis using the submit_initial_analysis_final_answer tool.
-                You are REQUIRED to call this tool - do not respond with text only.
-
-                Based on all the information you have gathered so far, provide your best analysis of:
-                - The affected assets and their risk levels
-                - The observed TTPs and attack patterns
-                - The relevant CVEs identified
-                - Your overall assessment and recommendations
-
-                Use all available context from your previous investigations to create a comprehensive analysis.
-                IMPORTANT: You must call the submit_initial_analysis_final_answer tool with your analysis."""
+            content=FORCE_FINAL_ANALYSIS_SYSTEM_PROMPT.format(
+                tool_name=FINAL_ANSWER_TOOL_NAME
+            )
         )
 
         # Add the final answer prompt to messages
@@ -442,11 +426,10 @@ class InitialAnalysisWorkflow:
             )
 
             tool_args_copy["incident_data"] = incident_data.model_dump(mode="json")
-            
+
             tool_args_copy["messages"] = [
                 msg.model_dump(mode="json") for msg in self.messages
             ]
-            
 
             return tool_args_copy
 

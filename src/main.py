@@ -14,7 +14,7 @@ from src.parsers import IncidentParserManager
 from src.reports.markdown_report_generator import MarkdownReportGenerator
 from src.tools.mcp_client_manager import MCPClientManager
 from src.tools.nvd_tool import NVDTool
-from src.lc_workflows.initial_analysis_workflow import InitialAnalysisWorkflow
+from src.stages.incident_analysis import IncidentAnalysis
 
 # Configure logging
 logging.basicConfig(
@@ -312,7 +312,7 @@ async def main():
             logger.info("No MCP servers configured")
 
         # Create the initial analysis workflow
-        initial_analysis_workflow = InitialAnalysisWorkflow(
+        initial_analysis_workflow = IncidentAnalysis(
             config=config, mcp_client_manager=mcp_client_manager
         )
 
@@ -355,7 +355,7 @@ async def main():
                 f"Starting workflow for incident: {incident_vulnerability_report.incident_id}"
             )
 
-            analysis_result = await initial_analysis_workflow.run_analysis(
+            analysis_result = await initial_analysis_workflow.run(
                 incident_vulnerability_report=incident_vulnerability_report,
                 incident_data=parsed.incident,
             )
