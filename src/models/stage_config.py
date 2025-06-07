@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Any
 from pydantic import BaseModel, Field
 
 from .llm_config import LLMConfig
@@ -9,8 +9,9 @@ class Stage(str, Enum):
 
     INCIDENT_PRE_PROCESSING = "incident_pre_processing"
     INITIAL_INCIDENT_AND_CVE_ANALYSIS = "initial_incident_and_cve_analysis"
-    
-    
+    REPORT_GENERATION = "report_generation"
+
+
     # Other stages we could add
     # PRIORITIZED_RISK_AND_IMPACT_ASSESSMENT = "prioritized_risk_and_impact_assessment"
     # FINAL_INCIDENT_ANALYSIS = "final_incident_analysis"
@@ -30,12 +31,12 @@ class StageConfig(BaseModel):
     strict_version_matching: Optional[bool] = Field(
         False, description="Enable strict version matching for tools"
     )
-    
+
     # Token management
     token_budget: Optional[int] = Field(None, description="Token budget for this stage")
     enable_caching: Optional[bool] = Field(True, description="Enable response caching")
     cache_ttl: Optional[int] = Field(3600, description="Cache TTL in seconds")
-    
+
     max_iterations: Optional[int] = Field(
         None, description="Maximum number of iterations for this stage"
     )
@@ -46,6 +47,12 @@ class StageConfig(BaseModel):
     )
     available_mcp_servers: Optional[List[str]] = Field(
         None, description="List of MCP server names available to this stage"
+    )
+
+    # NEW: Settings dictionary for custom stage-specific settings
+    settings: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="Custom settings dictionary for stage-specific configuration"
     )
 
     class Config:
@@ -64,5 +71,10 @@ class StageConfig(BaseModel):
                 "max_iterations": 5,
                 "available_tools": ["nvd_tool", "vulnerability_scanner"],
                 "available_mcp_servers": ["vulnerability_intelligence"],
+                "settings": {
+                    "custom_threshold": 0.8,
+                    "enable_feature_x": True,
+                    "processing_mode": "advanced"
+                }
             }
         }

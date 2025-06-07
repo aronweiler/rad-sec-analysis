@@ -12,9 +12,12 @@ from src.models.stage_config import Stage
 from src.parsers.base import ParseResult
 from src.parsers import IncidentParserManager
 from src.reports.markdown_report_generator import MarkdownReportGenerator
+from src.stages.base import StageBase
+from src.stages.incident_pre_processing import IncidentPreProcessingStage
+from src.stages.report_stage import ReportStage
 from src.tools.mcp_client_manager import MCPClientManager
 from src.tools.nvd_tool import NVDTool
-from src.stages.incident_analysis import IncidentAnalysis
+from src.stages.incident_analysis import IncidentAnalysisStage
 
 # Configure logging
 logging.basicConfig(
@@ -269,13 +272,6 @@ async def main():
             help="Path to the incidents file (default: incidents.json)",
         )
         parser.add_argument(
-            "--output-dir",
-            "-o",
-            type=str,
-            default="output",
-            help="Path to the output directory (default: output)",
-        )
-        parser.add_argument(
             "--config",
             "-c",
             type=str,
@@ -300,9 +296,6 @@ async def main():
         # # Initialize token manager
         # token_manager = TokenManager()
 
-        # Create the NVD tool instance
-        nvd = NVDTool()
-
         # Initialize MCP Client Manager
         mcp_client_manager = MCPClientManager()
         if config.get_enabled_mcp_servers():
@@ -311,23 +304,31 @@ async def main():
         else:
             logger.info("No MCP servers configured")
 
-        # Create the initial analysis workflow
-        initial_analysis_workflow = IncidentAnalysis(
-            config=config, mcp_client_manager=mcp_client_manager
-        )
-
         # Parse incidents from file
         statistics, parsed_incidents = await _parse_incidents_from_file(
             args.file, config.incident_parser
         )
+        
+        # print("Incident parsing statistics:", json.dumps(statistics, indent=2))
 
-        # Report generator
-        generator = MarkdownReportGenerator()
+        # Create the stages
+        stages: List[StageBase] = []
 
-        # Get the stage configuration for incident preprocessing
-        pre_processing_stage_config = config.get_stage_config(
-            stage=Stage.INCIDENT_PRE_PROCESSING
+        # Create the incident analysis stage
+        incident_analysis_stage = IncidentAnalysisStage(
+            config=config, mcp_client_manager=mcp_client_manager
         )
+        stages.append(incident_analysis_stage)
+
+        # Create the pre-processing stage
+        pre_processing_stage = IncidentPreProcessingStage(
+            config=config, mcp_client_manager=mcp_client_manager
+        )
+        stages.append(pre_processing_stage)
+
+        # Create the report generation stage
+        report_stage = ReportStage(config=config, mcp_client_manager=mcp_client_manager)
+        stages.append(report_stage)
 
         # Evaluate each of the parsed incidents
         for parsed in parsed_incidents:
@@ -337,43 +338,13 @@ async def main():
                 )
                 continue
 
-            # Generate initial vulnerability report using NVD
-            incident_vulnerability_report = nvd.analyze_incident_vulnerabilities(
-                incident=parsed.incident,
-                strict_version_matching=pre_processing_stage_config.strict_version_matching,
-            )
+            # Initial stage input is the parsed incident
+            stage_input = parsed.incident
+            for stage in stages:
+                logger.info(f"Running stage: {stage.stage_type.value}")
 
-            logger.info("Initial NVD vulnerability report:")
-            logger.info(
-                json.dumps(
-                    nvd.export_report_to_dict(incident_vulnerability_report), indent=2
-                )
-            )
-
-            # Run the workflow for initial analysis
-            logger.info(
-                f"Starting workflow for incident: {incident_vulnerability_report.incident_id}"
-            )
-
-            analysis_result = await initial_analysis_workflow.run(
-                incident_vulnerability_report=incident_vulnerability_report,
-                incident_data=parsed.incident,
-            )
-
-            logger.info("Initial analysis workflow completed:")
-            logger.info(analysis_result.model_dump_json(indent=2))
-
-            if parsed.incident is not None:
-                output_path = str(
-                    Path(args.output_dir) / f"{parsed.incident.incident_id}_report.md"
-                )
-                generator.save_report(analysis_result, output_path)
-                # Also create a customer-facing report
-                generator.save_customer_report(
-                    analysis_result, output_path.replace("_report.md", "_customer_report.md")
-                )
-            else:
-                logger.warning("Parsed incident is None, skipping report generation.")
+                # Each stage has a run method that takes the output of the previous stage
+                stage_input = await stage.run(stage_input)
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)

@@ -27,7 +27,7 @@ from langchain_core.tools import BaseTool
 FINAL_ANSWER_TOOL_NAME = "submit_analysis"
 
 
-class IncidentAnalysis(StageBase):
+class IncidentAnalysisStage(StageBase):
     """Workflow for incident and CVE analysis"""
 
     def __init__(self, config: ApplicationConfig, mcp_client_manager: MCPClientManager):

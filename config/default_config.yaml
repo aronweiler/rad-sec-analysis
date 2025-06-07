@@ -32,7 +32,8 @@ stages:
   incident_pre_processing:
     stage: "incident_pre_processing"
     enabled: true
-    strict_version_matching: true # strict version matching for CVEs
+    settings:
+      strict_version_matching: true # strict version matching for CVEs
 
   incident_analysis:
     stage: "incident_analysis"
@@ -53,6 +54,12 @@ stages:
     max_iterations: 5
     available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_analysis"]
     available_mcp_servers: ["vulnerability_intelligence"]
+
+    report_generator:
+      stage: "report_generator"
+      enabled: true
+      settings:
+        output_directory: "./reports"
 
   # Other possible stages- if we were to extend the pipeline
   # prioritized_risk_and_impact_assessment:
