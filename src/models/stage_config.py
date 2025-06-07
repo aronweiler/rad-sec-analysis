@@ -8,7 +8,8 @@ class Stage(str, Enum):
     """Stages in the analysis pipeline"""
 
     INCIDENT_PRE_PROCESSING = "incident_pre_processing"
-    INITIAL_INCIDENT_AND_CVE_ANALYSIS = "initial_incident_and_cve_analysis"
+    INCIDENT_RESEARCH = "incident_research"
+    INCIDENT_ANALYSIS = "incident_analysis"
     REPORT_GENERATION = "report_generation"
 
 
@@ -39,6 +40,10 @@ class StageConfig(BaseModel):
 
     max_iterations: Optional[int] = Field(
         None, description="Maximum number of iterations for this stage"
+    )
+    
+    max_final_retries: Optional[int] = Field(
+        3, description="Maximum number of retries for final output generation"
     )
 
     # Tool and MCP server access control

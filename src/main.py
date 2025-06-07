@@ -12,9 +12,11 @@ from src.models.stage_config import Stage
 from src.parsers.base import ParseResult
 from src.parsers import IncidentParserManager
 from src.reports.markdown_report_generator import MarkdownReportGenerator
+from src.stages.analysis_stage import AnalysisStage
 from src.stages.base import StageBase
 from src.stages.incident_pre_processing import IncidentPreProcessingStage
 from src.stages.report_stage import ReportStage
+from src.stages.research_stage import ResearchStage
 from src.tools.mcp_client_manager import MCPClientManager
 from src.tools.nvd_tool import NVDTool
 from src.stages.incident_analysis import IncidentAnalysisStage
@@ -320,11 +322,17 @@ async def main():
         )
         stages.append(pre_processing_stage)
 
-        # Create the incident analysis stage
-        incident_analysis_stage = IncidentAnalysisStage(
+        # Create the research stage
+        analysis_stage = ResearchStage(
             config=config, mcp_client_manager=mcp_client_manager
         )
-        stages.append(incident_analysis_stage)
+        stages.append(analysis_stage)
+        
+        # Create the analysis stage
+        analysis_stage = AnalysisStage(
+            config=config, mcp_client_manager=mcp_client_manager
+        )
+        stages.append(analysis_stage)
 
         # Create the report generation stage
         report_stage = ReportStage(config=config, mcp_client_manager=mcp_client_manager)

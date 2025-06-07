@@ -183,13 +183,14 @@ def _register_default_tools():
     try:
         from .nvd_tool_wrappers import nvd_tools
         from .submit_analysis_tool import submit_analysis_tools
+        from .submit_research_tool import submit_research_tools
         
         # Register all tools
-        tools_to_register = nvd_tools + submit_analysis_tools
+        tools_to_register = nvd_tools + submit_analysis_tools + submit_research_tools
         
         registry = get_tool_registry()
         
-        # Register NVD tools
+        # Register all tools
         for tool in tools_to_register:
             if isinstance(tool, BaseTool):
                 registry.register_tool(tool)            
