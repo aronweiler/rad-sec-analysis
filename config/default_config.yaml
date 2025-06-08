@@ -34,6 +34,10 @@ stages:
     enabled: true
     settings:
       strict_version_matching: true # strict version matching for CVEs
+      max_cves_per_software: 500
+      max_age_days: 365 # Maximum age of CVEs to consider
+      prioritize_recent_days: 30 # Prioritize CVEs from the last 30 days
+      min_relevance_score: 0.7 # Minimum relevance score for CVEs
 
   # incident_research:
   #   stage: "incident_research"

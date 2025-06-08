@@ -32,11 +32,11 @@ class IncidentPreProcessingStage(StageBase):
             stage_type=Stage.INCIDENT_PRE_PROCESSING,
         )
 
-        self.max_cves_per_software: int = 50
-        self.max_age_days: Optional[int] = 365
-        self.prioritize_recent_days: int = 365
-        self.strict_version_matching: bool = self.stage_config.strict_version_matching
-        self.min_relevance_score: float = 0.6
+        self.max_cves_per_software: int = int(self.stage_config.settings.get('max_cves_per_software', 50))
+        self.max_age_days: Optional[int] = int(self.stage_config.settings.get('max_age_days', 365))
+        self.prioritize_recent_days: int = int(self.stage_config.settings.get('prioritize_recent_days', 365))
+        self.strict_version_matching: bool = bool(self.stage_config.settings.get('strict_version_matching', False))
+        self.min_relevance_score: float = float(self.stage_config.settings.get('min_relevance_score', 0.3))
 
         self.nvd_tool = NVDTool()
 
