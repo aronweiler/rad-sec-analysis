@@ -83,7 +83,7 @@ class AnalysisVerificationResult(BaseModel):
                 "validation_warnings": [
                     {
                         "category": "software_version_mismatch",
-                        "field_path": "identified_cves[0].affected_software[0]",
+                        "field_path": "prioritized_relevant_cves[0].affected_software[0]",
                         "message": "Software version mentioned doesn't exactly match incident data",
                         "severity": "low",
                     }
@@ -276,11 +276,7 @@ class AnalysisValidator:
         analysis_cve_ids = set()
 
         # From identified CVEs
-        for cve_analysis in analysis.identified_cves:
-            analysis_cve_ids.add(cve_analysis.cve_id)
-
-        # From additional CVEs found
-        for cve_analysis in analysis.additional_cves_found:
+        for cve_analysis in analysis.prioritized_relevant_cves:
             analysis_cve_ids.add(cve_analysis.cve_id)
 
         # Soft validation: warn if many CVEs are not in the original report
@@ -290,7 +286,7 @@ class AnalysisValidator:
             self.warnings.append(
                 ValidationWarning(
                     category="many_new_cves",
-                    field_path="identified_cves",
+                    field_path="prioritized_relevant_cves",
                     message=f"Analysis includes many CVEs not in original report: {', '.join(list(new_cves)[:5])}{'...' if len(new_cves) > 5 else ''}",
                     severity="low",
                 )
@@ -334,7 +330,7 @@ class AnalysisValidator:
             )
 
         # Check for empty critical sections
-        if not analysis.identified_cves and not analysis.additional_cves_found:
+        if not analysis.prioritized_relevant_cves:
             self.completeness_issues.append(
                 CompletenessIssue(
                     category="no_cve_analysis",
@@ -353,8 +349,7 @@ def submit_analysis(
     executive_summary: str,
     overall_risk_assessment: RiskLevel,
     attack_sophistication: str,
-    identified_cves: List[CVEAnalysis],
-    additional_cves_found: List[CVEAnalysis],
+    prioritized_relevant_cves: List[CVEAnalysis],
     cve_prioritization_rationale: str,
     asset_risk_assessments: List[AssetRiskAssessment],
     most_critical_assets: List[str],
@@ -395,8 +390,7 @@ def submit_analysis(
         executive_summary: High-level summary of the incident and key findings
         overall_risk_assessment: Overall risk level assessment for the incident
         attack_sophistication: Assessment of the sophistication level of the attack
-        identified_cves: List of CVEs identified and analyzed from the original report
-        additional_cves_found: List of additional CVEs discovered during analysis
+        prioritized_relevant_cves: Prioritized list of relevant (and only relevant) CVEs identified and analyzed
         cve_prioritization_rationale: Explanation of how CVEs were prioritized
         asset_risk_assessments: Risk assessment for each affected asset
         most_critical_assets: List of hostnames for the most critical assets
@@ -424,8 +418,7 @@ def submit_analysis(
         executive_summary=executive_summary,
         overall_risk_assessment=overall_risk_assessment,
         attack_sophistication=attack_sophistication,
-        identified_cves=identified_cves,
-        additional_cves_found=additional_cves_found,
+        prioritized_relevant_cves=prioritized_relevant_cves,
         cve_prioritization_rationale=cve_prioritization_rationale,
         asset_risk_assessments=asset_risk_assessments,
         most_critical_assets=most_critical_assets,

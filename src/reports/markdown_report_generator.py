@@ -92,7 +92,7 @@ class MarkdownReportGenerator:
 
 - **Attack Sophistication:** {analysis.attack_sophistication}
 - **Primary Risk Level:** {self.risk_level_icons[analysis.overall_risk_assessment]} {analysis.overall_risk_assessment.value.title()}
-- **CVEs Identified:** {len(analysis.identified_cves)} from original report + {len(analysis.additional_cves_found)} discovered
+- **CVEs Identified:** {len(analysis.prioritized_relevant_cves)}
 - **Assets Analyzed:** {len(analysis.asset_risk_assessments)}
 - **Critical Assets:** {len(analysis.most_critical_assets)}
 - **Attack Techniques:** {len(analysis.ttp_analysis)} TTPs analyzed"""
@@ -101,10 +101,9 @@ class MarkdownReportGenerator:
         """Generate risk assessment dashboard"""
         
         # Count CVEs by risk level
-        cve_risk_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-        all_cves = analysis.identified_cves + analysis.additional_cves_found
+        cve_risk_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0} 
         
-        for cve in all_cves:
+        for cve in analysis.prioritized_relevant_cves:
             if cve.exploitation_likelihood in [ExploitationLikelihood.VERY_HIGH, ExploitationLikelihood.HIGH]:
                 if cve.cvss_score and cve.cvss_score >= 9.0:
                     cve_risk_counts["critical"] += 1
@@ -132,10 +131,10 @@ class MarkdownReportGenerator:
 ### Vulnerability Risk Distribution
 | Risk Level | Count | Percentage |
 |------------|-------|------------|
-| 🔴 Critical | {cve_risk_counts['critical']} | {(cve_risk_counts['critical']/max(len(all_cves), 1)*100):.1f}% |
-| 🟠 High | {cve_risk_counts['high']} | {(cve_risk_counts['high']/max(len(all_cves), 1)*100):.1f}% |
-| 🟡 Medium | {cve_risk_counts['medium']} | {(cve_risk_counts['medium']/max(len(all_cves), 1)*100):.1f}% |
-| 🟢 Low | {cve_risk_counts['low']} | {(cve_risk_counts['low']/max(len(all_cves), 1)*100):.1f}% |
+| 🔴 Critical | {cve_risk_counts['critical']} | {(cve_risk_counts['critical']/max(len(analysis.prioritized_relevant_cves), 1)*100):.1f}% |
+| 🟠 High | {cve_risk_counts['high']} | {(cve_risk_counts['high']/max(len(analysis.prioritized_relevant_cves), 1)*100):.1f}% |
+| 🟡 Medium | {cve_risk_counts['medium']} | {(cve_risk_counts['medium']/max(len(analysis.prioritized_relevant_cves), 1)*100):.1f}% |
+| 🟢 Low | {cve_risk_counts['low']} | {(cve_risk_counts['low']/max(len(analysis.prioritized_relevant_cves), 1)*100):.1f}% |
 
 ### Asset Risk Distribution
 | Risk Level | Count | Assets |
@@ -183,13 +182,10 @@ class MarkdownReportGenerator:
 ### CVE Prioritization Methodology
 """ + analysis.cve_prioritization_rationale
         
-        if analysis.identified_cves:
-            section += "\n\n### Critical Vulnerabilities from Original Report\n"
-            section += self._generate_cve_table(analysis.identified_cves)
-        
-        if analysis.additional_cves_found:
-            section += "\n\n### Additional Vulnerabilities Discovered\n"
-            section += self._generate_cve_table(analysis.additional_cves_found)
+        if analysis.prioritized_relevant_cves:
+            section += "\n\n### Critical Vulnerabilities\n"
+            section += self._generate_cve_table(analysis.prioritized_relevant_cves)
+    
         
         return section
     
@@ -558,8 +554,7 @@ The AI agent followed this analytical process:
         analysis = verification_result.analysis
 
         # Calculate key metrics
-        all_cves = analysis.identified_cves + analysis.additional_cves_found
-        critical_cves = [cve for cve in all_cves if cve.exploitation_likelihood in [ExploitationLikelihood.VERY_HIGH, ExploitationLikelihood.HIGH]]
+        critical_cves = [cve for cve in analysis.prioritized_relevant_cves if cve.exploitation_likelihood in [ExploitationLikelihood.VERY_HIGH, ExploitationLikelihood.HIGH]]
         high_risk_assets = [asset for asset in analysis.asset_risk_assessments if asset.overall_risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH]]
 
         # Get immediate actions count
@@ -580,7 +575,7 @@ The AI agent followed this analytical process:
     ## Key Findings
 
     ### Security Impact
-    - **{len(all_cves)} vulnerabilities** identified across your systems
+    - **{len(analysis.prioritized_relevant_cves)} vulnerabilities** identified across your systems
     - **{len(critical_cves)} high-priority vulnerabilities** require immediate attention
     - **{len(analysis.asset_risk_assessments)} systems** were analyzed for security impact
     - **{len(high_risk_assets)} systems** are at elevated risk and need priority remediation

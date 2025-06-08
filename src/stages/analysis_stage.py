@@ -43,7 +43,7 @@ class AnalysisStage(AgenticStageBase):
         incident_vulnerability_report: IncidentVulnerabilityReport,
         incident_data: IncidentData,
         research_results: ResearchValidationResult,
-    ) -> AnalysisVerificationResult:
+    ) -> tuple[AnalysisVerificationResult, IncidentData]:
         """
         Run the analysis workflow
         
@@ -63,7 +63,7 @@ class AnalysisStage(AgenticStageBase):
             incident_vulnerability_report=incident_vulnerability_report,
             incident_data=incident_data,
             research_results=research_results
-        )
+        ), incident_data
     
     def get_required_tools(self) -> List[str]:
         """Analysis stage requires the submit_analysis tool"""
@@ -112,8 +112,7 @@ class AnalysisStage(AgenticStageBase):
                 "research_gaps": [gap.model_dump() for gap in research_results.research.research_gaps],
                 "enriched_context": research_results.research.enriched_incident_context,
                 "research_notes": research_results.research.research_notes,
-            }
-        }
+            }        }
         
         # Create initial messages
         system_message = SystemMessage(content=ANALYSIS_SYSTEM_PROMPT)
@@ -130,7 +129,7 @@ class AnalysisStage(AgenticStageBase):
                 i.model_dump() for i in incident_data.indicators_of_compromise
             ]
             or "No indicators provided",
-            research_findings=json.dumps(research_summary, indent=2),
+            research_findings=json.dumps(research_summary, indent=2, default=str),
         )
         
         user_message = HumanMessage(content=user_prompt)
@@ -159,7 +158,7 @@ class AnalysisStage(AgenticStageBase):
         self.logger.info("Executing forced analysis submission")
 
         # Create a final analysis submission prompt
-        force_final_message = SystemMessage(
+        force_final_message = HumanMessage(
             content=FORCE_FINAL_ANALYSIS_SYSTEM_PROMPT.format(
                 tool_name=ANALYSIS_SUBMISSION_TOOL_NAME
             )

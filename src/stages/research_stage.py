@@ -153,7 +153,7 @@ class ResearchStage(AgenticStageBase):
         self.logger.info("Executing forced research submission")
 
         # Create a final research submission prompt
-        force_final_message = SystemMessage(
+        force_final_message = HumanMessage(
             content=FORCE_FINAL_RESEARCH_SYSTEM_PROMPT.format(
                 tool_name=RESEARCH_SUBMISSION_TOOL_NAME
             )

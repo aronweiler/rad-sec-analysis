@@ -212,7 +212,7 @@ class IncidentAnalysisResult(BaseModel):
                 "executive_summary": "A sophisticated brute force attack successfully compromised VPN credentials and gained access to internal web servers. Multiple critical vulnerabilities were identified that enabled lateral movement and privilege escalation.",
                 "overall_risk_assessment": "high",
                 "attack_sophistication": "Medium - Used common attack tools but showed knowledge of specific vulnerabilities",
-                "identified_cves": [
+                "prioritized_relevant_cves": [
                     {
                         "cve_id": "CVE-2023-12345",
                         "cvss_score": 8.5,
@@ -308,8 +308,7 @@ class IncidentAnalysisResult(BaseModel):
     attack_sophistication: str = Field(..., description="Assessment of attack sophistication")
     
     # CVE Analysis
-    identified_cves: List[CVEAnalysis] = Field(default_factory=list, description="Detailed CVE analysis")
-    additional_cves_found: List[CVEAnalysis] = Field(default_factory=list, description="Additional CVEs discovered during analysis")
+    prioritized_relevant_cves: List[CVEAnalysis] = Field(default_factory=list, description="Prioritized list of detailed CVE analysis")
     cve_prioritization_rationale: str = Field(..., description="Explanation of CVE prioritization methodology")
     
     # Asset Analysis
