@@ -186,10 +186,17 @@ class AnalysisValidator:
 
         # Create mapping for software validation
         asset_software_map = {}
+        all_software_names = set()
+        all_software_with_versions = set()
+
         for asset in self.incident_data.affected_assets:
             asset_software_map[asset.hostname] = {
                 f"{sw.name} {sw.version}" for sw in asset.installed_software
             }
+            # Collect all software names and software+version combinations
+            for sw in asset.installed_software:
+                all_software_names.add(sw.name.lower())
+                all_software_with_versions.add(f"{sw.name} {sw.version}".lower())
 
         # Validate each asset risk assessment
         for i, asset_assessment in enumerate(analysis.asset_risk_assessments):
@@ -226,12 +233,31 @@ class AnalysisValidator:
                     # This is a soft check since CVEs might be discovered through analysis
                     pass  # We'll validate CVE existence in _validate_cves
 
-        # Validate most_critical_assets references
-        for i, hostname in enumerate(analysis.most_critical_assets):
-            if hostname.lower() not in [vh.lower() for vh in valid_hostnames]:
+        # Validate most_critical_assets references with flexible validation
+        for i, critical_asset in enumerate(analysis.most_critical_assets):
+            critical_asset_lower = critical_asset.lower()
+
+            # Check if it's a valid hostname (case insensitive)
+            is_valid_hostname = critical_asset_lower in [vh.lower() for vh in valid_hostnames]
+
+            # Check if it's a software name (case insensitive)
+            is_valid_software_name = critical_asset_lower in all_software_names
+
+            # Check if it's a software name + version (case insensitive)
+            is_valid_software_with_version = critical_asset_lower in all_software_with_versions
+
+            # If none of the validations pass, raise an error
+            if not (is_valid_hostname or is_valid_software_name or is_valid_software_with_version):
+                # Create helpful error message with available options
+                available_hostnames = ', '.join(valid_hostnames)
+                available_software = ', '.join(sorted(all_software_names, key=str.lower))
+                available_software_versions = ', '.join(sorted(all_software_with_versions, key=str.lower))
+
                 raise ValueError(
-                    f"Critical asset hostname '{hostname}' not found in incident data. "
-                    f"Valid hostnames: {', '.join(valid_hostnames)}"
+                    f"Critical asset '{critical_asset}' is not valid. It must be one of:\n"
+                    f"- A hostname: {available_hostnames}\n"
+                    f"- A software name: {available_software}\n"
+                    f"- A software name + version: {available_software_versions}"
                 )
 
     def _validate_ttps(self, analysis: IncidentAnalysisResult):
