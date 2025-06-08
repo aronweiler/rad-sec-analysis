@@ -49,11 +49,11 @@ class IncidentPreProcessingStage(StageBase):
 
         Args:
             incident: Incident data object
-            self.max_cves_per_software: Maximum CVEs to retrieve per software
-            self.max_age_days: Filter out CVEs older than this many days
-            self.prioritize_recent_days: Prioritize CVEs from the last X days
-            self.strict_version_matching: Enable strict version matching for more precise results
-            self.min_relevance_score: Minimum relevance score for including CVEs (0.0-1.0)
+            max_cves_per_software: Maximum CVEs to retrieve per software
+            max_age_days: Filter out CVEs older than this many days
+            prioritize_recent_days: Prioritize CVEs from the last X days
+            strict_version_matching: Enable strict version matching for more precise results
+            min_relevance_score: Minimum relevance score for including CVEs (0.0-1.0)
 
         Returns:
             Complete incident vulnerability report
@@ -74,11 +74,11 @@ class IncidentPreProcessingStage(StageBase):
 
         # Store analysis configuration
         analysis_config = {
-            "self.max_cves_per_software": self.max_cves_per_software,
-            "self.max_age_days": self.max_age_days,
-            "self.prioritize_recent_days": self.prioritize_recent_days,
-            "self.strict_version_matching": self.strict_version_matching,
-            "self.min_relevance_score": self.min_relevance_score,
+            "max_cves_per_software": self.max_cves_per_software,
+            "max_age_days": self.max_age_days,
+            "prioritize_recent_days": self.prioritize_recent_days,
+            "strict_version_matching": self.strict_version_matching,
+            "min_relevance_score": self.min_relevance_score,
             "incident_date": incident_date.isoformat() if incident_date else None,
             "analysis_timestamp": datetime.now().isoformat(),
         }
@@ -162,10 +162,10 @@ class IncidentPreProcessingStage(StageBase):
         Args:
             software: Software information object
             max_results: Maximum number of CVEs to retrieve
-            self.max_age_days: Filter out CVEs older than this many days
-            self.prioritize_recent_days: Prioritize CVEs from the last X days (will be chunked if > 120)
-            self.strict_version_matching: Enable strict version matching
-            self.min_relevance_score: Minimum relevance score for including CVEs
+            max_age_days: Filter out CVEs older than this many days
+            prioritize_recent_days: Prioritize CVEs from the last X days (will be chunked if > 120)
+            strict_version_matching: Enable strict version matching
+            min_relevance_score: Minimum relevance score for including CVEs
             incident_date: Date when the incident occurred (for contextual filtering)
 
         Returns:
@@ -533,7 +533,7 @@ class IncidentPreProcessingStage(StageBase):
         Args:
             cve: CVE information object
             software: Software information object
-            self.strict_version_matching: Whether to apply strict version matching
+            strict_version_matching: Whether to apply strict version matching
             incident_date: Date of the incident for temporal relevance scoring
 
         Returns:
