@@ -41,7 +41,7 @@ stages:
   #   llm_config:
   #     provider: "anthropic"
   #     model_name: "claude-3-5-haiku-latest"
-  #     temperature: 0.1
+  #     temperature: 0 # Deterministic as possible
   #     max_tokens: 4096
   #     timeout: 30
   #     max_retries: 10
@@ -57,7 +57,7 @@ stages:
     llm_config:
       provider: "openai"
       model_name: "gpt-4o"
-      temperature: 0.1
+      temperature: 0 # Deterministic as possible
       max_tokens: 4096
       timeout: 30
       max_retries: 10
@@ -75,7 +75,7 @@ stages:
     llm_config:
       provider: "openai"
       model_name: "gpt-4o"
-      temperature: 0.1
+      temperature: 0 # Deterministic as possible
       max_tokens: 8192
       timeout: 30
       max_retries: 10
@@ -91,7 +91,7 @@ stages:
   #   llm_config:
   #     provider: "anthropic"
   #     model_name: "claude-sonnet-4-0"
-  #     temperature: 0.1
+  #     temperature: 0 # Deterministic as possible
   #     max_tokens: 8192
   #     timeout: 30
   #     max_retries: 10
@@ -115,7 +115,7 @@ stages:
   #   llm_config:
   #     provider: "anthropic"
   #     model_name: "claude-sonnet-4-0"
-  #     temperature: 0.0
+  #     temperature: 0 # Deterministic as possible
   #     max_tokens: 3000
   #     timeout: 45
   #     max_retries: 10
@@ -133,7 +133,7 @@ stages:
   #   llm_config:
   #     provider: "openai"
   #     model_name: "gpt-4.1"
-  #     temperature: 0.2
+  #     temperature: 0 # Deterministic as possible
   #     max_tokens: 2500
   #     timeout: 60
   #     max_retries: 10

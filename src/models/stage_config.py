@@ -16,6 +16,55 @@ class Stage(str, Enum):
     # Other stages we could add
     # PRIORITIZED_RISK_AND_IMPACT_ASSESSMENT = "prioritized_risk_and_impact_assessment"
     # FINAL_INCIDENT_ANALYSIS = "final_incident_analysis"
+    
+class CompressionStrategy(str, Enum):
+    """Compression strategies available"""
+    INTELLIGENT_WITH_TOOL = "intelligent_with_tool"
+    INTELLIGENT_PROMPT = "intelligent_prompt"
+    SIMPLE_TRUNCATION = "simple_truncation"
+
+class CompressionConfig(BaseModel):
+    """Configuration for context compression"""
+
+    enabled: bool = Field(True, description="Whether compression is enabled")
+
+    # Trigger settings
+    token_threshold: int = Field(4000, description="Token count threshold to trigger compression")
+
+    # Compression LLM
+    compression_llm_config: Optional[LLMConfig] = Field(
+        None, description="LLM config for compression (uses stage LLM if not specified)"
+    )
+
+    # Tool-based compression
+    compression_tool: Optional[str] = Field(
+        None, description="Name of tool to use for compression"
+    )
+
+    # Fallback settings
+    fallback_strategy: CompressionStrategy = Field(
+        CompressionStrategy.SIMPLE_TRUNCATION, 
+        description="Fallback strategy when primary compression fails"
+    )
+
+    preserve_last_n_messages: int = Field(
+        3, description="Number of recent messages to preserve in fallback"
+    )
+
+    # Compression behavior
+    preserve_system_messages: bool = Field(
+        True, description="Always preserve system messages"
+    )
+
+    max_compression_retries: int = Field(
+        2, description="Maximum retries for tool-based compression validation errors"
+    )
+
+    # Compression prompt settings
+    compression_prompt_path: Optional[str] = Field(
+        "prompts/compression_system_prompt.txt", 
+        description="Path to compression prompt file"
+    )
 
 class StageConfig(BaseModel):
     """Configuration for a specific stage"""
@@ -58,6 +107,10 @@ class StageConfig(BaseModel):
     settings: Dict[str, Any] = Field(
         default_factory=dict, 
         description="Custom settings dictionary for stage-specific configuration"
+    )
+    
+    compression_config: Optional[CompressionConfig] = Field(
+        None, description="Context compression configuration"
     )
 
     class Config:

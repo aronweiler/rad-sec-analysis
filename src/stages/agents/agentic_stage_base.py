@@ -9,6 +9,9 @@ from typing import Any, List, Optional, Tuple
 
 from langchain_core.messages import BaseMessage, AIMessage
 
+from src.core.context_window_manager import ContextWindowManager
+from src.core.llm_factory import LLMFactory
+from src.core.token_manager import TokenCounter
 from src.models.application_config import ApplicationConfig
 from src.models.stage_config import Stage
 from src.stages.base import StageBase
@@ -30,7 +33,7 @@ class AgenticStageBase(StageBase, ErrorRecoveryMixin, ABC):
     ):
         """
         Initialize the agentic stage
-        
+
         Args:
             config: Application configuration
             mcp_client_manager: Manager for MCP client connections
@@ -38,7 +41,24 @@ class AgenticStageBase(StageBase, ErrorRecoveryMixin, ABC):
         """
         super().__init__(config, mcp_client_manager, stage_type)
         self.tool_manager = AgenticToolManager(self.logger, mcp_client_manager)
-        self.loop_controller = AgenticLoopController(self.logger, self.stage_config.max_iterations)
+
+        # Initialize context window management
+        self.token_counter = TokenCounter()
+        self.llm_factory = LLMFactory()
+        self.context_window_manager = ContextWindowManager(
+            self.token_counter, 
+            self.llm_factory
+        )
+
+        # Create loop controller with context management
+        self.loop_controller = AgenticLoopController(
+            logger=self.logger,
+            max_iterations=self.stage_config.max_iterations,
+            context_window_manager=self.context_window_manager,
+            compression_config=self.stage_config.compression_config,
+            model_name=self.stage_config.llm_config.model_name if self.stage_config.llm_config else "default"
+        )
+
         self.messages: List[BaseMessage] = []
     
     async def execute_agentic_workflow(self, **kwargs) -> Any:

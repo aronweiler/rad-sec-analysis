@@ -156,6 +156,20 @@ class AnalysisStage(AgenticStageBase):
     async def _handle_forced_termination(self, **kwargs) -> AnalysisVerificationResult:
         """Handle forced termination when max iterations are reached"""
         self.logger.info("Executing forced analysis submission")
+        
+        # Apply context window management before forced termination
+        if self.context_window_manager and self.stage_config.compression_config:
+            processed_messages, was_compressed = await self.context_window_manager.manage_context_window(
+                messages=self.messages,
+                compression_config=self.stage_config.compression_config,
+                model_name=self.stage_config.llm_config.model_name if self.stage_config.llm_config else "default",
+                available_tools={}  # No compression tool needed for forced termination
+            )
+
+            if was_compressed:
+                self.logger.info("Context was compressed before forced termination")
+                self.messages.clear()
+                self.messages.extend(processed_messages)
 
         # Create a final analysis submission prompt
         force_final_message = HumanMessage(
