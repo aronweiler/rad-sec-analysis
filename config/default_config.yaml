@@ -63,7 +63,9 @@ stages:
     stage: "cpe_extraction"
     enabled: true
     llm_config:
+      # provider: "ollama"      
       provider: "openai"
+      # model_name: "qwen2.5:7b"
       model_name: "gpt-4o-mini"  
       temperature: 0  # Deterministic for consistent CPE generation
       max_tokens: 4096
@@ -71,6 +73,7 @@ stages:
       max_retries: 5
       extra_params:
         top_p: 0.9
+        # format: "json" # for ollama
     max_final_retries: 3
     max_iterations: 1  # Auto-terminate after one iteration, since we're processing all of the incidents at once (stage will batch them)
     available_tools: ["generate_cpes_for_batch"]
@@ -121,54 +124,7 @@ stages:
         frequency_penalty: 0.0
     max_final_retries: 3
     max_iterations: 3
-    available_tools: ["search_cves_by_keyword", "search_cves_by_cpe", "search_cves_by_multiple_cpes", "get_cve_details", "get_recent_cves", "submit_research"]    
-    compression_config:
-      enabled: true
-      token_threshold: 50000
-      compression_llm_config:
-        provider: "openai"
-        model_name: "gpt-4o-mini"  # Faster, cheaper model for compression
-        temperature: 0
-        max_tokens: 4096
-        timeout: 30
-        max_retries: 3
-      fallback_strategy: "intelligent_prompt"
-      preserve_last_n_messages: 5
-      preserve_system_messages: true
-      max_compression_retries: 3
-
-  # incident_research:
-  #   stage: "incident_research"
-  #   enabled: true
-  #   llm_config:
-  #     provider: "anthropic"
-  #     model_name: "claude-3-5-haiku-latest"
-  #     temperature: 0 # Deterministic as possible
-  #     max_tokens: 4096
-  #     timeout: 30
-  #     max_retries: 10
-  #     extra_params:
-  #       top_p: 0.9
-  #   max_final_retries: 3
-  #   max_iterations: 3
-  #   available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_research"]
-  #   available_mcp_servers: ["vulnerability_intelligence"]
-
-  incident_analysis:
-    stage: "incident_analysis"
-    enabled: true
-    llm_config:
-      provider: "openai"
-      model_name: "gpt-4o"
-      temperature: 0 # Deterministic as possible
-      max_tokens: 8192
-      timeout: 30
-      max_retries: 10
-      extra_params:
-        top_p: 0.9
-    max_final_retries: 3
-    max_iterations: 3
-    available_tools: ["submit_analysis"]
+    available_tools: ["search_cves_by_cpe", "get_cve_details", "submit_research"]    
     available_mcp_servers: ["vulnerability_intelligence"]
     compression_config:
       enabled: true
@@ -184,67 +140,43 @@ stages:
       preserve_last_n_messages: 5
       preserve_system_messages: true
       max_compression_retries: 3
-      
-  # incident_analysis:
-  #   stage: "incident_analysis"
-  #   enabled: true
-  #   llm_config:
-  #     provider: "anthropic"
-  #     model_name: "claude-sonnet-4-0"
-  #     temperature: 0 # Deterministic as possible
-  #     max_tokens: 8192
-  #     timeout: 30
-  #     max_retries: 10
-  #     extra_params:
-  #       top_p: 0.9
-  #   max_final_retries: 3
-  #   max_iterations: 3
-  #   available_tools: ["submit_analysis"]
-  #   available_mcp_servers: ["vulnerability_intelligence"]
+
+  incident_analysis:
+    stage: "incident_analysis"
+    enabled: true
+    llm_config:
+      provider: "anthropic"
+      model_name: "claude-sonnet-4-0"
+      temperature: 0 # Deterministic as possible
+      max_tokens: 8192
+      timeout: 30
+      max_retries: 10
+      extra_params:
+        top_p: 0.9
+    max_final_retries: 3
+    max_iterations: 3
+    # available_tools: ["web_search", "web_scrape"] # These hypothetical tools could be used for real-time info gathering
+    available_tools: ["submit_analysis"]
+    compression_config:
+      enabled: true
+      token_threshold: 50000
+      compression_llm_config:
+        provider: "openai"
+        model_name: "gpt-4o-mini"  # Faster, cheaper model for compression
+        temperature: 0
+        max_tokens: 4096
+        timeout: 30
+        max_retries: 3
+      fallback_strategy: "intelligent_prompt"
+      preserve_last_n_messages: 5
+      preserve_system_messages: true
+      max_compression_retries: 3      
 
   report_generation:
     stage: "report_generation"
     enabled: true
     settings:
       output_directory: "./reports"
-
-  # Other possible stages- if we were to extend the pipeline
-  # prioritized_risk_and_impact_assessment:
-  #   stage: "prioritized_risk_and_impact_assessment"
-  #   enabled: true
-  #   llm_config:
-  #     provider: "anthropic"
-  #     model_name: "claude-sonnet-4-0"
-  #     temperature: 0 # Deterministic as possible
-  #     max_tokens: 3000
-  #     timeout: 45
-  #     max_retries: 10
-  #     extra_params:
-  #       top_k: 40
-  #   token_budget: 3000
-  #   enable_caching: true
-  #   cache_ttl: 7200
-  #   max_iterations: 1
-  #   available_tools: ["risk_calculator", "impact_analyzer"]
-
-  # final_incident_analysis:
-  #   stage: "final_incident_analysis"
-  #   enabled: true
-  #   llm_config:
-  #     provider: "openai"
-  #     model_name: "gpt-4.1"
-  #     temperature: 0 # Deterministic as possible
-  #     max_tokens: 2500
-  #     timeout: 60
-  #     max_retries: 10
-  #     extra_params:
-  #       top_p: 0.95
-  #   token_budget: 2500
-  #   enable_caching: true
-  #   cache_ttl: 1800
-  #   max_iterations: 1
-  #   available_tools: ["report_generator", "summary_tool"]
-    
 
 # MCP Server Configurations
 mcp_servers:

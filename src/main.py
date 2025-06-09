@@ -7,18 +7,18 @@ from pathlib import Path
 from typing import List
 
 
-from core.config_loader import ConfigLoader
-from models.stage_config import Stage
-from parsers.base import ParseResult
-from parsers import IncidentParserManager
-from reports.markdown_report_generator import MarkdownReportGenerator
-from stages.analysis_stage import AnalysisStage
-from stages.base import StageBase
-from stages.cpe_extraction_stage import CPEExtractionStage
-from stages.incident_pre_processing_stage import IncidentPreProcessingStage
-from stages.report_stage import ReportStage
-from stages.research_stage import ResearchStage
-from tools.mcp_client_manager import MCPClientManager
+from .core.config_loader import ConfigLoader
+from .models.stage_config import Stage
+from .parsers.base import ParseResult
+from .parsers import IncidentParserManager
+from .reports.markdown_report_generator import MarkdownReportGenerator
+from .stages.analysis_stage import AnalysisStage
+from .stages.base import StageBase
+from .stages.cpe_extraction_stage import CPEExtractionStage
+from .stages.incident_pre_processing_stage import IncidentPreProcessingStage
+from .stages.report_stage import ReportStage
+from .stages.research_stage import ResearchStage
+from .tools.mcp_client_manager import MCPClientManager
 
 # Configure logging
 logging.basicConfig(
@@ -269,8 +269,8 @@ async def main():
             "--file",
             "-f",
             type=str,
-            default="incidents.json",
-            help="Path to the incidents file (default: incidents.json)",
+            default="data/incident_data.json",
+            help="Path to the incidents file (default: data/incident_data.json)",
         )
         parser.add_argument(
             "--config",

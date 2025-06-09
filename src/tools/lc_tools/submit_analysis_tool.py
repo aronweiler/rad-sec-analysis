@@ -20,8 +20,8 @@ from .incident_analysis_result import (
     RiskLevel,
     ExploitationLikelihood,
 )
-from ..models.incident_vulnerability_report import IncidentVulnerabilityReport
-from ..models.incident import IncidentData
+from ...models.incident_vulnerability_report import IncidentVulnerabilityReport
+from ...models.incident import IncidentData
 
 
 class ValidationWarning(BaseModel):

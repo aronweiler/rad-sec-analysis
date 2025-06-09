@@ -135,7 +135,9 @@ def get_recent_cves(days: int = 7, results_per_page: int = 50) -> str:
                 "days_searched": days,
                 "total_found": len(cves),
                 "recent_cves": sorted(
-                    results, key=lambda x: x.get("score", 0), reverse=True
+                    results,
+                    key=lambda x: x.get("score", 0) if x.get("score", 0) else 0,
+                    reverse=True,
                 ),
             },
             indent=2,
@@ -217,9 +219,9 @@ def search_cves_by_multiple_cpes(cpe_names: str, results_per_page: int = 20) -> 
                 "cvss_v3_score": cve.cvss_v3_score,
                 "cvss_v3_severity": cve.cvss_v3_severity,
                 "published_date": cve.published_date.strftime("%Y-%m-%d"),
-                "references": cve.references[:3],  # Limit references for batch
+                "references": cve.references[:5],  # Limit references for batch
                 "total_references": len(cve.references),
-                "cpe_matches": cve.cpe_matches[:3],  # Limit CPE matches for batch
+                "cpe_matches": cve.cpe_matches[:5],  # Limit CPE matches for batch
                 "total_cpe_matches": len(cve.cpe_matches),
             }
             results.append(result)

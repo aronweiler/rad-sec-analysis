@@ -51,7 +51,7 @@ class ContextWindowManager:
         current_tokens = self._count_message_tokens(messages, model_name)
 
         if current_tokens <= compression_config.token_threshold:
-            self.logger.debug(f"Context size ({current_tokens} tokens) below threshold ({compression_config.token_threshold})")
+            self.logger.info(f"Context size ({current_tokens} tokens) below threshold ({compression_config.token_threshold})")
             return messages, False
 
         self.logger.info(f"Context size ({current_tokens} tokens) exceeds threshold ({compression_config.token_threshold}), compressing...")

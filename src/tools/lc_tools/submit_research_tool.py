@@ -17,8 +17,8 @@ from .incident_research_result import (
     ResearchGap,
     ResearchConfidence,
 )
-from ..models.incident_vulnerability_report import IncidentVulnerabilityReport
-from ..models.incident import IncidentData
+from ...models.incident_vulnerability_report import IncidentVulnerabilityReport
+from ...models.incident import IncidentData
 
 
 class ResearchValidationResult(BaseModel):
@@ -152,7 +152,7 @@ def submit_research(
         key_discoveries: Key discoveries made during research
         research_limitations: Limitations encountered during research
         recommended_next_steps: Recommended next steps for analysis
-        enriched_incident_context: Additional context discovered about the incident
+        enriched_incident_context: A dictionary of additional context discovered about the incident
         research_notes: Additional research notes and observations
     """
 

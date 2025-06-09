@@ -6,7 +6,7 @@ Example tool that demonstrates how to use the `InjectedToolArg` to pass a list o
 
 from typing import List, Annotated
 from langchain_core.tools import tool, InjectedToolArg
-from ..models.incident import IncidentData
+from ...models.incident import IncidentData
 
 
 # The langchain signature to use should look something like this when you want to make use of IncidentData:

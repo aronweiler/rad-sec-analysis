@@ -255,7 +255,7 @@ class IncidentResearchResult(BaseModel):
     # Context preservation
     enriched_incident_context: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional context discovered about the incident",
+        description="A dictionary of additional context discovered about the incident",
     )
     research_notes: List[str] = Field(
         default_factory=list, description="Additional research notes and observations"

@@ -61,6 +61,10 @@ class AnalysisStage(AgenticStageBase):
             f"Starting analysis for incident: {incident_vulnerability_report.incident_id}"
         )
 
+        self.research_results = (
+            research_results  # Store research results for access in other methods
+        )
+
         return (
             await self.execute_agentic_workflow(
                 incident_vulnerability_report=incident_vulnerability_report,
@@ -266,9 +270,15 @@ class AnalysisStage(AgenticStageBase):
 
             tool_args_copy["incident_data"] = incident_data.model_dump(mode="json")
 
-            tool_args_copy["messages"] = [
-                msg.model_dump(mode="json") for msg in self.messages
-            ]
+            # Inject the messages for this stage as well as the previous stages
+
+            # Add the research messages
+            tool_args_copy["messages"] = self.research_results.messages
+
+            # Append the current messages from this stage
+            tool_args_copy["messages"].extend(
+                [msg.model_dump(mode="json") for msg in self.messages]
+            )
 
             # Include research results in the context if available
             if research_results:
