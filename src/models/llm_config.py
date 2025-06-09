@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
+
 class LLMProvider(str, Enum):
     """Supported LLM providers"""
 
@@ -11,6 +12,7 @@ class LLMProvider(str, Enum):
     GOOGLE = "google"
     OLLAMA = "ollama"
     HUGGINGFACE = "huggingface"
+
 
 class LLMConfig(BaseModel):
     """Configuration for a specific LLM"""

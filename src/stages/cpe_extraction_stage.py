@@ -54,7 +54,7 @@ class CPEExtractionStage(AgenticStageBase):
         """
         # Remap incidents to incident data
         incidents = [i.incident for i in parse_results]
-        
+
         self.logger.info(f"Starting CPE extraction for {len(incidents)} incidents")
 
         # Store incidents for processing
@@ -62,11 +62,13 @@ class CPEExtractionStage(AgenticStageBase):
         self.processed_incidents = []
 
         # Get batch size from stage config
-        batch_size = self.stage_config.settings.get('asset_batch_size', 20)
+        batch_size = self.stage_config.settings.get("asset_batch_size", 20)
         self.total_batches = ceil(len(incidents) / batch_size)
 
-        self.logger.info(f"Processing {len(incidents)} incidents in {self.total_batches} batches of size {batch_size}")
-        
+        self.logger.info(
+            f"Processing {len(incidents)} incidents in {self.total_batches} batches of size {batch_size}"
+        )
+
         # Note: Batch processing is currently sequential - parallelization could be a future enhancement
 
         # Process batches sequentially
@@ -76,7 +78,9 @@ class CPEExtractionStage(AgenticStageBase):
             end_idx = min(start_idx + batch_size, len(incidents))
             batch_incidents = incidents[start_idx:end_idx]
 
-            self.logger.info(f"Processing batch {self.current_batch}/{self.total_batches} with {len(batch_incidents)} incidents")
+            self.logger.info(
+                f"Processing batch {self.current_batch}/{self.total_batches} with {len(batch_incidents)} incidents"
+            )
 
             # Store current batch for injection
             self.current_batch_incidents = batch_incidents
@@ -85,14 +89,16 @@ class CPEExtractionStage(AgenticStageBase):
             processed_batch = await self.execute_agentic_workflow(
                 batch_incidents=batch_incidents,
                 batch_number=self.current_batch,
-                total_batches=self.total_batches
+                total_batches=self.total_batches,
             )
-            
+
             # Add processed incidents to our result list
             self.processed_incidents.extend(processed_batch)
 
-        self.logger.info(f"Completed CPE extraction for all {len(self.processed_incidents)} incidents")
-        
+        self.logger.info(
+            f"Completed CPE extraction for all {len(self.processed_incidents)} incidents"
+        )
+
         return self.processed_incidents
 
     def get_required_tools(self) -> List[str]:
@@ -105,7 +111,7 @@ class CPEExtractionStage(AgenticStageBase):
 
     async def _prepare_initial_messages(self, **kwargs) -> List[BaseMessage]:
         """Prepare the initial system and user messages for CPE extraction"""
-        batch_incidents = kwargs["batch_incidents"]       
+        batch_incidents = kwargs["batch_incidents"]
 
         # Create detailed batch information
         batch_details = []
@@ -151,9 +157,16 @@ class CPEExtractionStage(AgenticStageBase):
                     # Tool was called - check if we have a successful result in the conversation
                     # Look for tool messages in the conversation that indicate success
                     for msg in reversed(self.messages):
-                        if hasattr(msg, 'content') and isinstance(msg.content, str) and msg.type == "tool":
+                        if (
+                            hasattr(msg, "content")
+                            and isinstance(msg.content, str)
+                            and msg.type == "tool"
+                        ):
                             # If we see a tool message without validation errors, we can terminate
-                            if "Validation error(s)" not in msg.content and "validation error" not in msg.content.lower():
+                            if (
+                                "Validation error(s)" not in msg.content
+                                and "validation error" not in msg.content.lower()
+                            ):
                                 # Successful tool execution - return the current batch
                                 return True, kwargs.get("batch_incidents", [])
 
@@ -162,11 +175,15 @@ class CPEExtractionStage(AgenticStageBase):
 
     async def _handle_forced_termination(self, **kwargs) -> List[IncidentData]:
         """Handle forced termination - should not occur with max_iterations=1"""
-        self.logger.error("Forced termination in CPE extraction stage - this should not happen with max_iterations=1")
+        self.logger.error(
+            "Forced termination in CPE extraction stage - this should not happen with max_iterations=1"
+        )
         batch_incidents = kwargs.get("batch_incidents", [])
 
         # Return the original incidents without CPE data as fallback
-        self.logger.warning("Returning original incidents without CPE data due to forced termination")
+        self.logger.warning(
+            "Returning original incidents without CPE data due to forced termination"
+        )
         return batch_incidents
 
     def _inject_stage_specific_args(self, tool_args: dict, **kwargs) -> dict:
@@ -179,12 +196,24 @@ class CPEExtractionStage(AgenticStageBase):
 
         # Inject validation configuration from stage settings
         validation_config = {
-            'hostname_similarity_threshold': self.stage_config.settings.get('hostname_similarity_threshold', 0.8),
-            'software_name_similarity_threshold': self.stage_config.settings.get('software_name_similarity_threshold', 0.7),
-            'software_version_similarity_threshold': self.stage_config.settings.get('software_version_similarity_threshold', 0.8),
-            'vendor_product_similarity_threshold': self.stage_config.settings.get('vendor_product_similarity_threshold', 0.6),
-            'strict_ip_matching': self.stage_config.settings.get('strict_ip_matching', True),
-            'strict_hostname_matching': self.stage_config.settings.get('strict_hostname_matching', False)
+            "hostname_similarity_threshold": self.stage_config.settings.get(
+                "hostname_similarity_threshold", 0.8
+            ),
+            "software_name_similarity_threshold": self.stage_config.settings.get(
+                "software_name_similarity_threshold", 0.7
+            ),
+            "software_version_similarity_threshold": self.stage_config.settings.get(
+                "software_version_similarity_threshold", 0.8
+            ),
+            "vendor_product_similarity_threshold": self.stage_config.settings.get(
+                "vendor_product_similarity_threshold", 0.6
+            ),
+            "strict_ip_matching": self.stage_config.settings.get(
+                "strict_ip_matching", True
+            ),
+            "strict_hostname_matching": self.stage_config.settings.get(
+                "strict_hostname_matching", False
+            ),
         }
         enhanced_args["validation_config"] = validation_config
 

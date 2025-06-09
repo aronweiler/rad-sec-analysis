@@ -83,7 +83,9 @@ class ResearchStage(AgenticStageBase):
         # Format affected assets summary with software details
         affected_assets_summary = []
         for asset in incident_data.affected_assets:
-            software_list = ", ".join([f"{s.name} {s.version}" for s in asset.installed_software[:3]])
+            software_list = ", ".join(
+                [f"{s.name} {s.version}" for s in asset.installed_software[:3]]
+            )
             if len(asset.installed_software) > 3:
                 software_list += f" (+{len(asset.installed_software)-3} more)"
             affected_assets_summary.append(
@@ -94,13 +96,13 @@ class ResearchStage(AgenticStageBase):
         all_cves = []
         for software_report in incident_vulnerability_report.software_reports:
             all_cves.extend(software_report.cves)
-        
+
         top_cves = sorted(
             [cve for cve in all_cves if cve.cvss_v3_score and cve.cvss_v3_score >= 7.0],
             key=lambda x: (x.cvss_v3_score, x.relevance_score),
-            reverse=True
+            reverse=True,
         )[:10]
-        
+
         top_cves_list = []
         for cve in top_cves:
             cwe_info = f" ({cve.weaknesses[0]})" if cve.weaknesses else ""
@@ -111,10 +113,14 @@ class ResearchStage(AgenticStageBase):
         # Extract recent CVEs (last 90 days)
         recent_cves = []
         for software_report in incident_vulnerability_report.software_reports:
-            recent_cves.extend([cve for cve in software_report.recent_cves if cve.age_days <= 90])
-        
+            recent_cves.extend(
+                [cve for cve in software_report.recent_cves if cve.age_days <= 90]
+            )
+
         recent_cves_list = []
-        for cve in sorted(recent_cves, key=lambda x: x.published_date, reverse=True)[:8]:
+        for cve in sorted(recent_cves, key=lambda x: x.published_date, reverse=True)[
+            :8
+        ]:
             recent_cves_list.append(
                 f"**{cve.cve_id}**: {cve.cvss_v3_severity or 'N/A'} - {cve.published_date.strftime('%m/%d')} - {cve.description[:80]}..."
             )
@@ -125,24 +131,26 @@ class ResearchStage(AgenticStageBase):
         # Show key software CPEs
         for cpe in cpe_data["software_cpes"][:8]:
             cpe_list.append(f"- {cpe}")
-        # Show key asset CPEs  
+        # Show key asset CPEs
         for cpe in cpe_data["asset_cpes"][:5]:
             cpe_list.append(f"- {cpe}")
 
         # Format observed TTPs concisely
         if incident_data.observed_ttps:
-            observed_ttps_info = "\n".join([
-                f"**{ttp.id}**: {ttp.name}" for ttp in incident_data.observed_ttps
-            ])
+            observed_ttps_info = "\n".join(
+                [f"**{ttp.id}**: {ttp.name}" for ttp in incident_data.observed_ttps]
+            )
         else:
             observed_ttps_info = "None specified"
 
         # Format indicators concisely
         if incident_data.indicators_of_compromise:
-            indicators_info = "\n".join([
-                f"**{ioc.type.value}**: {ioc.value} ({ioc.context[:50]}...)" 
-                for ioc in incident_data.indicators_of_compromise[:8]
-            ])
+            indicators_info = "\n".join(
+                [
+                    f"**{ioc.type.value}**: {ioc.value} ({ioc.context[:50]}...)"
+                    for ioc in incident_data.indicators_of_compromise[:8]
+                ]
+            )
         else:
             indicators_info = "None specified"
 
@@ -163,9 +171,21 @@ class ResearchStage(AgenticStageBase):
             timestamp=datetime.now().isoformat(),
             title=incident_data.title,
             description=incident_data.description,
-            affected_assets_summary="\n".join(affected_assets_summary) if affected_assets_summary else "No assets specified",
-            top_cves_list="\n".join(top_cves_list) if top_cves_list else "No high-severity CVEs found",
-            recent_cves_list="\n".join(recent_cves_list) if recent_cves_list else "No recent CVEs found",
+            affected_assets_summary=(
+                "\n".join(affected_assets_summary)
+                if affected_assets_summary
+                else "No assets specified"
+            ),
+            top_cves_list=(
+                "\n".join(top_cves_list)
+                if top_cves_list
+                else "No high-severity CVEs found"
+            ),
+            recent_cves_list=(
+                "\n".join(recent_cves_list)
+                if recent_cves_list
+                else "No recent CVEs found"
+            ),
             cpe_list="\n".join(cpe_list) if cpe_list else "No CPE strings available",
             observed_ttps_info=observed_ttps_info,
             indicators_info=indicators_info,

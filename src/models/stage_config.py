@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from .llm_config import LLMConfig
 
+
 class Stage(str, Enum):
     """Stages in the analysis pipeline"""
 
@@ -13,16 +14,18 @@ class Stage(str, Enum):
     INCIDENT_ANALYSIS = "incident_analysis"
     REPORT_GENERATION = "report_generation"
 
-
     # Other stages we could add
     # PRIORITIZED_RISK_AND_IMPACT_ASSESSMENT = "prioritized_risk_and_impact_assessment"
     # FINAL_INCIDENT_ANALYSIS = "final_incident_analysis"
-    
+
+
 class CompressionStrategy(str, Enum):
     """Compression strategies available"""
+
     INTELLIGENT_WITH_TOOL = "intelligent_with_tool"
     INTELLIGENT_PROMPT = "intelligent_prompt"
     SIMPLE_TRUNCATION = "simple_truncation"
+
 
 class CompressionConfig(BaseModel):
     """Configuration for context compression"""
@@ -30,7 +33,9 @@ class CompressionConfig(BaseModel):
     enabled: bool = Field(True, description="Whether compression is enabled")
 
     # Trigger settings
-    token_threshold: int = Field(4000, description="Token count threshold to trigger compression")
+    token_threshold: int = Field(
+        4000, description="Token count threshold to trigger compression"
+    )
 
     # Compression LLM
     compression_llm_config: Optional[LLMConfig] = Field(
@@ -44,8 +49,8 @@ class CompressionConfig(BaseModel):
 
     # Fallback settings
     fallback_strategy: CompressionStrategy = Field(
-        CompressionStrategy.SIMPLE_TRUNCATION, 
-        description="Fallback strategy when primary compression fails"
+        CompressionStrategy.SIMPLE_TRUNCATION,
+        description="Fallback strategy when primary compression fails",
     )
 
     preserve_last_n_messages: int = Field(
@@ -63,15 +68,18 @@ class CompressionConfig(BaseModel):
 
     # Compression prompt settings
     compression_prompt_path: Optional[str] = Field(
-        "prompts/compression_system_prompt.txt", 
-        description="Path to compression prompt file"
+        "prompts/compression_system_prompt.txt",
+        description="Path to compression prompt file",
     )
+
 
 class StageConfig(BaseModel):
     """Configuration for a specific stage"""
 
     stage: Stage = Field(..., description="Stage identifier")
-    llm_config: Optional[LLMConfig] = Field(None, description="LLM configuration for this stage")
+    llm_config: Optional[LLMConfig] = Field(
+        None, description="LLM configuration for this stage"
+    )
     enabled: bool = Field(True, description="Whether this stage is enabled")
 
     # Stage-specific settings
@@ -91,7 +99,7 @@ class StageConfig(BaseModel):
     max_iterations: Optional[int] = Field(
         None, description="Maximum number of iterations for this stage"
     )
-    
+
     max_final_retries: Optional[int] = Field(
         3, description="Maximum number of retries for final output generation"
     )
@@ -106,10 +114,10 @@ class StageConfig(BaseModel):
 
     # NEW: Settings dictionary for custom stage-specific settings
     settings: Dict[str, Any] = Field(
-        default_factory=dict, 
-        description="Custom settings dictionary for stage-specific configuration"
+        default_factory=dict,
+        description="Custom settings dictionary for stage-specific configuration",
     )
-    
+
     compression_config: Optional[CompressionConfig] = Field(
         None, description="Context compression configuration"
     )
@@ -133,7 +141,7 @@ class StageConfig(BaseModel):
                 "settings": {
                     "custom_threshold": 0.8,
                     "enable_feature_x": True,
-                    "processing_mode": "advanced"
-                }
+                    "processing_mode": "advanced",
+                },
             }
         }

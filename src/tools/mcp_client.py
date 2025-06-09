@@ -22,7 +22,9 @@ class MCPClient:
     This client discovers tools at runtime through the MCP protocol's discovery mechanisms.
     """
 
-    def __init__(self, server_url: str = "http://localhost:8000/sse", timeout: int = 30):
+    def __init__(
+        self, server_url: str = "http://localhost:8000/sse", timeout: int = 30
+    ):
         """
         Initialize the generic MCP client.
 
@@ -47,7 +49,10 @@ class MCPClient:
         try:
             logger.info(f"🔗 Connecting to MCP server at {self.server_url}...")
 
-            async with sse_client(url=self.server_url, timeout=self.timeout) as (read_stream, write_stream):
+            async with sse_client(url=self.server_url, timeout=self.timeout) as (
+                read_stream,
+                write_stream,
+            ):
                 async with ClientSession(read_stream, write_stream) as session:
                     self.session = session
                     await session.initialize()
@@ -66,7 +71,9 @@ class MCPClient:
     def _ensure_connected(self):
         """Ensure the client is connected before making requests."""
         if not self._connected or not self.session:
-            raise RuntimeError("Client is not connected. Use 'async with client.connect()' first.")
+            raise RuntimeError(
+                "Client is not connected. Use 'async with client.connect()' first."
+            )
 
     async def list_tools(self) -> List[Dict[str, Any]]:
         """
@@ -80,28 +87,30 @@ class MCPClient:
         try:
             result = await self.session.list_tools()
             tools = []
-            if hasattr(result, 'tools') and result.tools:
+            if hasattr(result, "tools") and result.tools:
                 for tool in result.tools:
                     tool_info = {
-                        'name': tool.name,
-                        'description': tool.description if hasattr(tool, 'description') else None,
+                        "name": tool.name,
+                        "description": (
+                            tool.description if hasattr(tool, "description") else None
+                        ),
                     }
-                    if hasattr(tool, 'inputSchema'):
-                        tool_info['input_schema'] = tool.inputSchema
+                    if hasattr(tool, "inputSchema"):
+                        tool_info["input_schema"] = tool.inputSchema
                     tools.append(tool_info)
             return tools
         except Exception as e:
             raise RuntimeError(f"Failed to list tools: {e}")
-        
+
     async def get_langchain_tools(self) -> list[BaseTool]:
         """
         Discover and return tools compatible with LangChain.
-        
+
         Returns:
             List of LangChain-compatible tool dictionaries
         """
         tools = await load_mcp_tools(self.session)
-        
+
         return tools
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any] = None) -> Any:
@@ -121,16 +130,18 @@ class MCPClient:
             result = await self.session.call_tool(tool_name, arguments or {})
 
             # Extract content from the result
-            if hasattr(result, 'content') and result.content:
+            if hasattr(result, "content") and result.content:
                 if len(result.content) == 1:
                     content = result.content[0]
-                    if hasattr(content, 'text'):
+                    if hasattr(content, "text"):
                         return content.text
                     else:
                         return content
                 else:
                     # Multiple content items
-                    return [getattr(content, 'text', content) for content in result.content]
+                    return [
+                        getattr(content, "text", content) for content in result.content
+                    ]
             else:
                 return result
 
@@ -149,13 +160,13 @@ class MCPClient:
         try:
             result = await self.session.list_resources()
             resources = []
-            if hasattr(result, 'resources') and result.resources:
+            if hasattr(result, "resources") and result.resources:
                 for resource in result.resources:
                     resource_info = {
-                        'uri': resource.uri,
-                        'name': getattr(resource, 'name', None),
-                        'description': getattr(resource, 'description', None),
-                        'mime_type': getattr(resource, 'mimeType', None)
+                        "uri": resource.uri,
+                        "name": getattr(resource, "name", None),
+                        "description": getattr(resource, "description", None),
+                        "mime_type": getattr(resource, "mimeType", None),
                     }
                     resources.append(resource_info)
             return resources
@@ -192,21 +203,21 @@ class MCPClient:
         try:
             result = await self.session.list_prompts()
             prompts = []
-            if hasattr(result, 'prompts') and result.prompts:
+            if hasattr(result, "prompts") and result.prompts:
                 for prompt in result.prompts:
                     prompt_info = {
-                        'name': prompt.name,
-                        'description': getattr(prompt, 'description', None),
-                        'arguments': []
+                        "name": prompt.name,
+                        "description": getattr(prompt, "description", None),
+                        "arguments": [],
                     }
-                    if hasattr(prompt, 'arguments') and prompt.arguments:
+                    if hasattr(prompt, "arguments") and prompt.arguments:
                         for arg in prompt.arguments:
                             arg_info = {
-                                'name': arg.name,
-                                'description': getattr(arg, 'description', None),
-                                'required': getattr(arg, 'required', False)
+                                "name": arg.name,
+                                "description": getattr(arg, "description", None),
+                                "required": getattr(arg, "required", False),
                             }
-                            prompt_info['arguments'].append(arg_info)
+                            prompt_info["arguments"].append(arg_info)
                     prompts.append(prompt_info)
             return prompts
         except Exception as e:
@@ -230,7 +241,6 @@ class MCPClient:
             return result
         except Exception as e:
             raise RuntimeError(f"Failed to get prompt '{name}': {e}")
-
 
     @property
     def is_connected(self) -> bool:

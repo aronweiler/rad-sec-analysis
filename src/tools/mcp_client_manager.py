@@ -84,9 +84,8 @@ class MCPClientManager:
         """List all available tools for a specific server"""
         async with self.get_connected_client(server_name) as client:
             return await client.list_tools()
-        
-    async def get_langchain_tools(
-        self, server_name: str) -> list[BaseTool]:
+
+    async def get_langchain_tools(self, server_name: str) -> list[BaseTool]:
         """Get LangChain-compatible tools for a specific server"""
         async with self.get_connected_client(server_name) as client:
             return await client.get_langchain_tools()
@@ -107,7 +106,9 @@ class MCPClientManager:
         async with self.get_connected_client(server_name) as client:
             return await client.list_resources()
 
-    async def read_resource(self, server_name: str, uri: str) -> Tuple[str, Optional[str]]:
+    async def read_resource(
+        self, server_name: str, uri: str
+    ) -> Tuple[str, Optional[str]]:
         """Read a resource from a specific server"""
         async with self.get_connected_client(server_name) as client:
             return await client.read_resource(uri)
@@ -117,7 +118,9 @@ class MCPClientManager:
         async with self.get_connected_client(server_name) as client:
             return await client.list_prompts()
 
-    async def get_prompt(self, server_name: str, name: str, arguments: Dict[str, str] = {}) -> Any:
+    async def get_prompt(
+        self, server_name: str, name: str, arguments: Dict[str, str] = {}
+    ) -> Any:
         """Get a prompt from a specific server"""
         async with self.get_connected_client(server_name) as client:
             return await client.get_prompt(name, arguments or {})
@@ -171,4 +174,3 @@ class MCPClientManager:
                 "server_url": client.server_url if client else None,
             }
         return info
-

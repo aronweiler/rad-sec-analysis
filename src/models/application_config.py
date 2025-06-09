@@ -1,5 +1,3 @@
-
-
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
@@ -25,9 +23,9 @@ class ApplicationConfig(BaseModel):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
         "INFO", description="Logging level"
     )
-    
+
     # Incident parser settings
-    incident_parser: str = Field("json_v1", description="Incident parser to use")    
+    incident_parser: str = Field("json_v1", description="Incident parser to use")
 
     # Token management
     global_token_budget: Optional[int] = Field(
@@ -42,7 +40,6 @@ class ApplicationConfig(BaseModel):
     cache_config: Dict[str, Any] = Field(
         default_factory=dict, description="Cache-specific configuration"
     )
-
 
     @field_validator("stages")
     @classmethod
@@ -67,9 +64,7 @@ class ApplicationConfig(BaseModel):
 
     def get_enabled_stages(self) -> List[Stage]:
         """Get list of enabled stages"""
-        return [
-            stage for stage, config in self.stages.items() if config.enabled
-        ]
+        return [stage for stage, config in self.stages.items() if config.enabled]
 
     def get_mcp_server_config(self, server_name: str) -> Optional[MCPServerConfig]:
         """Get configuration for a specific MCP server"""

@@ -1,7 +1,9 @@
 from enum import Enum
 
+
 class IOCType(str, Enum):
     """Types of Indicators of Compromise (Extracted from JSON - real world would be pulled from somewhere else)"""
+
     APPLICATION_CRASH_LOG = "application_crash_log"
     APPLICATION_LOG_PATTERN = "application_log_pattern"
     AUTHENTICATION_LOG = "authentication_log"

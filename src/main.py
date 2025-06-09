@@ -313,7 +313,7 @@ async def main():
         # print("Incident parsing statistics:", json.dumps(statistics, indent=2))
 
         # Create the stages
-        stages: List[StageBase] = []        
+        stages: List[StageBase] = []
 
         # Create the pre-processing stage
         pre_processing_stage = IncidentPreProcessingStage(
@@ -336,12 +336,12 @@ async def main():
         # Create the report generation stage
         report_stage = ReportStage(config=config, mcp_client_manager=mcp_client_manager)
         stages.append(report_stage)
-        
+
         # Create the cpe extraction stage, which is special and invoked separately
         cpe_extraction_stage = CPEExtractionStage(
             config=config, mcp_client_manager=mcp_client_manager
         )
-        
+
         # First run the CPE extraction stage separately to augment incidents with CPE data
         incidents = await cpe_extraction_stage.run(parsed_incidents)
 
@@ -349,7 +349,7 @@ async def main():
         for incident in incidents:
             # Initial stage input is the incident we're on
             stage_input = incident
-            
+
             # Run each stage sequentially
             for stage in stages:
                 logger.info(f"Running stage: {stage.stage_type.value}")

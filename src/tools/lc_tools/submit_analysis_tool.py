@@ -108,7 +108,7 @@ class AnalysisVerificationResult(BaseModel):
         ..., description="Whether validation passed overall"
     )
     validation_summary: str = Field(..., description="Summary of validation results")
-    
+
     messages: List[dict] = Field(
         default_factory=list,
         description="Messages exchanged during the analysis process, including AI and human messages",
@@ -238,20 +238,32 @@ class AnalysisValidator:
             critical_asset_lower = critical_asset.lower()
 
             # Check if it's a valid hostname (case insensitive)
-            is_valid_hostname = critical_asset_lower in [vh.lower() for vh in valid_hostnames]
+            is_valid_hostname = critical_asset_lower in [
+                vh.lower() for vh in valid_hostnames
+            ]
 
             # Check if it's a software name (case insensitive)
             is_valid_software_name = critical_asset_lower in all_software_names
 
             # Check if it's a software name + version (case insensitive)
-            is_valid_software_with_version = critical_asset_lower in all_software_with_versions
+            is_valid_software_with_version = (
+                critical_asset_lower in all_software_with_versions
+            )
 
             # If none of the validations pass, raise an error
-            if not (is_valid_hostname or is_valid_software_name or is_valid_software_with_version):
+            if not (
+                is_valid_hostname
+                or is_valid_software_name
+                or is_valid_software_with_version
+            ):
                 # Create helpful error message with available options
-                available_hostnames = ', '.join(valid_hostnames)
-                available_software = ', '.join(sorted(all_software_names, key=str.lower))
-                available_software_versions = ', '.join(sorted(all_software_with_versions, key=str.lower))
+                available_hostnames = ", ".join(valid_hostnames)
+                available_software = ", ".join(
+                    sorted(all_software_names, key=str.lower)
+                )
+                available_software_versions = ", ".join(
+                    sorted(all_software_with_versions, key=str.lower)
+                )
 
                 raise ValueError(
                     f"Critical asset '{critical_asset}' is not valid. It must be one of:\n"

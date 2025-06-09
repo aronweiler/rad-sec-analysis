@@ -23,7 +23,7 @@ from src.models.incident import IncidentData
 
 class ResearchValidationResult(BaseModel):
     """Wrapper for research results with validation information"""
-    
+
     model_config = ConfigDict(
         json_encoders={datetime: lambda v: v.isoformat()},
         json_schema_extra={
@@ -36,12 +36,14 @@ class ResearchValidationResult(BaseModel):
                 },
                 "validation_passed": True,
                 "validation_summary": "Research passed validation successfully",
-                "messages": []
+                "messages": [],
             }
         },
     )
-    
-    research: IncidentResearchResult = Field(..., description="The validated research result")
+
+    research: IncidentResearchResult = Field(
+        ..., description="The validated research result"
+    )
     validation_passed: bool = Field(..., description="Whether validation passed")
     validation_summary: str = Field(..., description="Summary of validation results")
     messages: List[dict] = Field(
@@ -52,7 +54,7 @@ class ResearchValidationResult(BaseModel):
 
 class ResearchValidator:
     """Validator for incident research results"""
-    
+
     def __init__(
         self,
         incident_data: IncidentData,
@@ -62,29 +64,35 @@ class ResearchValidator:
         self.incident_data = incident_data
         self.incident_vulnerability_report = incident_vulnerability_report
         self.messages = messages
-    
+
     def validate(self, research: IncidentResearchResult) -> ResearchValidationResult:
         """Validate the research result against incident data"""
-        
+
         # Basic validation checks
         validation_passed = True
         validation_issues = []
-        
+
         # Validate incident ID matches
         if research.incident_id != self.incident_data.incident_id:
             validation_passed = False
-            validation_issues.append(f"Incident ID mismatch: research has '{research.incident_id}' but incident data has '{self.incident_data.incident_id}'")
-        
+            validation_issues.append(
+                f"Incident ID mismatch: research has '{research.incident_id}' but incident data has '{self.incident_data.incident_id}'"
+            )
+
         # Validate confidence is in valid range
         if not (0 <= research.researcher_confidence <= 10):
             validation_passed = False
-            validation_issues.append(f"Researcher confidence must be between 0-10, got {research.researcher_confidence}")
-        
+            validation_issues.append(
+                f"Researcher confidence must be between 0-10, got {research.researcher_confidence}"
+            )
+
         # Validate research duration is reasonable
         if research.research_duration_minutes < 0:
             validation_passed = False
-            validation_issues.append(f"Research duration cannot be negative: {research.research_duration_minutes}")
-        
+            validation_issues.append(
+                f"Research duration cannot be negative: {research.research_duration_minutes}"
+            )
+
         # Create summary
         if validation_passed:
             if validation_issues:
@@ -93,7 +101,7 @@ class ResearchValidator:
                 summary = "Research passed validation successfully"
         else:
             summary = f"Research failed validation with {len(validation_issues)} issue(s): {'; '.join(validation_issues)}"
-        
+
         return ResearchValidationResult(
             research=research,
             validation_passed=validation_passed,
@@ -120,16 +128,15 @@ def submit_research(
     recommended_next_steps: List[str],
     enriched_incident_context: Dict[str, Any],
     research_notes: List[str],
-    incident_vulnerability_report: Annotated[IncidentVulnerabilityReport, InjectedToolArg],
+    incident_vulnerability_report: Annotated[
+        IncidentVulnerabilityReport, InjectedToolArg
+    ],
     incident_data: Annotated[IncidentData, InjectedToolArg],
     messages: Annotated[List[dict], InjectedToolArg],
 ) -> ResearchValidationResult:
     """
     Submit comprehensive incident research results.
-    
-    This tool accepts research findings from the incident research stage and validates
-    them against the original incident data.
-    
+
     Args:
         incident_id: Unique identifier for the incident being researched
         research_timestamp: When this research was completed
@@ -148,7 +155,7 @@ def submit_research(
         enriched_incident_context: Additional context discovered about the incident
         research_notes: Additional research notes and observations
     """
-    
+
     # Construct the research result
     research = IncidentResearchResult(
         incident_id=incident_id,
@@ -168,14 +175,14 @@ def submit_research(
         enriched_incident_context=enriched_incident_context,
         research_notes=research_notes,
     )
-    
+
     # Create validator and validate the research
     validator = ResearchValidator(
         incident_data=incident_data,
         incident_vulnerability_report=incident_vulnerability_report,
         messages=messages,
     )
-    
+
     return validator.validate(research)
 
 
