@@ -43,8 +43,8 @@ class CompressionConfig(BaseModel):
     )
 
     # Tool-based compression
-    compression_tool: Optional[str] = Field(
-        None, description="Name of tool to use for compression"
+    use_compression_tool: Optional[bool] = Field(
+        True, description="Whether or not to use the built-in compression tool for compression"
     )
 
     # Fallback settings
@@ -66,11 +66,6 @@ class CompressionConfig(BaseModel):
         2, description="Maximum retries for tool-based compression validation errors"
     )
 
-    # Compression prompt settings
-    compression_prompt_path: Optional[str] = Field(
-        "prompts/compression_system_prompt.txt",
-        description="Path to compression prompt file",
-    )
 
 
 class StageConfig(BaseModel):

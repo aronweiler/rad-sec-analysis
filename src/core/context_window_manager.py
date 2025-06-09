@@ -5,6 +5,12 @@ from typing import List, Optional, Tuple, Dict, Any
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langchain_core.language_models import BaseLanguageModel
 
+from ..models.incident import IncidentData
+
+from ..tools.chunked_compression_tool import compress_messages_chunked
+
+from ..core.llm_utilities import llm_invoke_with_retry
+
 from ..core.token_manager import TokenCounter
 from ..core.llm_factory import LLMFactory
 from ..models.stage_config import CompressionConfig, CompressionStrategy
@@ -13,9 +19,12 @@ from ..prompts.compression_system_prompt import COMPRESSION_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
+
 class CompressionError(Exception):
     """Error during context compression"""
+
     pass
+
 
 class ContextWindowManager:
     """Manages context window size through intelligent compression"""
@@ -29,8 +38,8 @@ class ContextWindowManager:
         self,
         messages: List[BaseMessage],
         compression_config: CompressionConfig,
+        incident_data: IncidentData,
         model_name: str = "default",
-        available_tools: Optional[Dict[str, Any]] = None
     ) -> Tuple[List[BaseMessage], bool]:
         """
         Manage context window size, compressing if necessary
@@ -40,6 +49,7 @@ class ContextWindowManager:
             compression_config: Compression configuration
             model_name: Model name for token counting
             available_tools: Available tools for compression
+            incident_data: Incident data for context
 
         Returns:
             Tuple of (processed_messages, was_compressed)
@@ -51,107 +61,99 @@ class ContextWindowManager:
         current_tokens = self._count_message_tokens(messages, model_name)
 
         if current_tokens <= compression_config.token_threshold:
-            self.logger.info(f"Context size ({current_tokens} tokens) below threshold ({compression_config.token_threshold})")
+            self.logger.info(
+                f"Context size ({current_tokens} tokens) below threshold ({compression_config.token_threshold})"
+            )
             return messages, False
 
-        self.logger.info(f"Context size ({current_tokens} tokens) exceeds threshold ({compression_config.token_threshold}), compressing...")
+        self.logger.info(
+            f"Context size ({current_tokens} tokens) exceeds threshold ({compression_config.token_threshold}), compressing..."
+        )
 
         try:
             # Attempt primary compression strategy
-            if compression_config.compression_tool and available_tools:
+            if compression_config.use_compression_tool:
                 compressed_messages = await self._compress_with_tool(
-                    messages, compression_config, available_tools
+                    messages, compression_config
                 )
             else:
                 compressed_messages = await self._compress_with_prompt(
-                    messages, compression_config
+                    messages, compression_config, incident_data
                 )
 
             # Verify compression was effective
-            compressed_tokens = self._count_message_tokens(compressed_messages, model_name)
-            self.logger.info(f"Compression successful: {current_tokens} -> {compressed_tokens} tokens")
+            compressed_tokens = self._count_message_tokens(
+                compressed_messages, model_name
+            )
+            self.logger.info(
+                f"Compression successful: {current_tokens} -> {compressed_tokens} tokens"
+            )
 
             return compressed_messages, True
 
         except Exception as e:
             self.logger.warning(f"Primary compression failed: {e}, falling back...")
-            return await self._apply_fallback_compression(messages, compression_config)
+            return await self._apply_fallback_compression(messages, compression_config, incident_data)
 
     async def _compress_with_tool(
-        self,
-        messages: List[BaseMessage],
-        compression_config: CompressionConfig,
-        available_tools: Dict[str, Any]
+        self, messages: List[BaseMessage], compression_config: CompressionConfig
     ) -> List[BaseMessage]:
-        """Compress using configured compression tool"""
-
+        """
+        Compress using the new chunked compression tool directly.
+        """
         # Get compression LLM
         compression_llm = self._get_compression_llm(compression_config)
 
-        # Get compression tool
-        compression_tool = available_tools.get(compression_config.compression_tool)
-        if not compression_tool:
-            raise CompressionError(f"Compression tool '{compression_config.compression_tool}' not available")
+        # Prepare messages as dicts for the tool
+        messages_dicts = []
+        for msg in messages:
+            if isinstance(msg, SystemMessage):
+                messages_dicts.append({"type": "system", "content": msg.content})
+            elif isinstance(msg, AIMessage):
+                messages_dicts.append({"type": "ai", "content": msg.content})
+            elif isinstance(msg, HumanMessage):
+                messages_dicts.append({"type": "human", "content": msg.content})
+            else:
+                messages_dicts.append({"type": "human", "content": str(msg)})
 
-        # Bind tool to LLM
-        llm_with_tool = compression_llm.bind_tools([compression_tool])
+        # Set chunk and final token limits (can be made configurable)
+        chunk_token_limit = getattr(compression_config, "chunk_token_limit", 2048)
+        final_token_limit = getattr(compression_config, "final_token_limit", 4096)
+        model_name = getattr(
+            compression_config.compression_llm_config, "model_name", "gpt-4o-mini"
+        )
 
-        # Separate system messages from others
-        system_messages, other_messages = self._separate_system_messages(messages)
+        # Call the chunked compression tool
+        compressed_content = await compress_messages_chunked(
+            messages=messages_dicts,
+            chunk_token_limit=chunk_token_limit,
+            final_token_limit=final_token_limit,
+            model_name=model_name,
+            llm=compression_llm,
+        )
 
-        # Create compression prompt
-        compression_prompt = self._create_tool_compression_prompt(other_messages)
-        compression_messages = [
-            SystemMessage(content="You are a context compression specialist. You MUST use the provided compression tool to compress the conversation history."),
-            HumanMessage(content=compression_prompt)
-        ]
+        # Optionally, preserve system messages and/or last N messages
+        system_messages = [msg for msg in messages if isinstance(msg, SystemMessage)]
+        compressed_message = HumanMessage(content=compressed_content)
 
-        # Execute compression with retries for validation errors
-        for attempt in range(compression_config.max_compression_retries + 1):
-            try:
-                response = await llm_with_tool.ainvoke(compression_messages)
+        # If you want to preserve the last N non-system messages:
+        preserve_last_n = getattr(compression_config, "preserve_last_n_messages", 0)
+        other_messages = [msg for msg in messages if not isinstance(msg, SystemMessage)]
+        preserved_tail = (
+            other_messages[-preserve_last_n:] if preserve_last_n > 0 else []
+        )
 
-                if not response.tool_calls:
-                    if attempt < compression_config.max_compression_retries:
-                        retry_msg = HumanMessage(content=f"You must use the {compression_config.compression_tool} tool to compress the context. Please call the tool with the conversation messages.")
-                        compression_messages.append(response)
-                        compression_messages.append(retry_msg)
-                        continue
-                    else:
-                        raise CompressionError("Compression tool was not called after maximum retries")
+        # Preserved tail could contain tool messages, which we need to strip down to content only
+        preserved_tail = [HumanMessage(content=msg.content) for msg in preserved_tail]
 
-                # Execute the tool (simplified - should make tool manager more generic to handle this as well)
-                tool_call = response.tool_calls[0]
-                tool_args = tool_call["args"]
-
-                # Tool should return compressed content
-                if compression_tool.coroutine:
-                    compressed_content = await compression_tool.ainvoke(tool_args)
-                else:
-                    compressed_content = compression_tool.invoke(tool_args)
-
-                # Create compressed message
-                compressed_message = HumanMessage(content=str(compressed_content))
-
-                # Return system messages + compressed message
-                return system_messages + [compressed_message]
-
-            except Exception as e:
-                if attempt < compression_config.max_compression_retries:
-                    self.logger.warning(f"Compression attempt {attempt + 1} failed: {e}, retrying...")
-                    retry_msg = HumanMessage(content=f"There was an error with your compression: {e}. Please try again using the {compression_config.compression_tool} tool.")
-                    compression_messages.append(response if 'response' in locals() else AIMessage(content="Error occurred"))
-                    compression_messages.append(retry_msg)
-                    continue
-                else:
-                    raise CompressionError(f"Tool compression failed after {compression_config.max_compression_retries} retries: {e}")
-
-        raise CompressionError("Unexpected end of compression retry loop")
+        # Return system messages + compressed message + preserved tail
+        return system_messages + [compressed_message] + preserved_tail
 
     async def _compress_with_prompt(
         self,
         messages: List[BaseMessage],
         compression_config: CompressionConfig,
+        incident_data: IncidentData,
     ) -> List[BaseMessage]:
         """Compress using intelligent prompt-based compression"""
 
@@ -164,12 +166,14 @@ class ContextWindowManager:
         # Create compression prompt
         compression_prompt = self._create_prompt_compression_request(other_messages)
         compression_messages = [
-            SystemMessage(content=COMPRESSION_SYSTEM_PROMPT),
-            HumanMessage(content=compression_prompt)
+            SystemMessage(
+                content=COMPRESSION_SYSTEM_PROMPT.format(incident_data=incident_data)
+            ),
+            HumanMessage(content=compression_prompt),
         ]
 
         # Execute compression
-        response = await compression_llm.ainvoke(compression_messages)
+        response = await llm_invoke_with_retry(compression_llm, compression_messages)
 
         # Create compressed message
         compressed_message = HumanMessage(content=response.content)
@@ -181,56 +185,80 @@ class ContextWindowManager:
         self,
         messages: List[BaseMessage],
         compression_config: CompressionConfig,
+        incident_data: IncidentData,
     ) -> Tuple[List[BaseMessage], bool]:
         """Apply fallback compression strategy"""
 
-        if compression_config.fallback_strategy == CompressionStrategy.INTELLIGENT_PROMPT:
+        if (
+            compression_config.fallback_strategy
+            == CompressionStrategy.INTELLIGENT_PROMPT
+        ):
             try:
-                compressed_messages = await self._compress_with_prompt(messages, compression_config)
+                compressed_messages = await self._compress_with_prompt(
+                    messages, compression_config, incident_data
+                )
                 return compressed_messages, True
             except Exception as e:
-                self.logger.warning(f"Fallback prompt compression failed: {e}, using simple truncation")
+                self.logger.warning(
+                    f"Fallback prompt compression failed: {e}, using simple truncation"
+                )
 
         # Simple truncation fallback
         system_messages, other_messages = self._separate_system_messages(messages)
 
         # Keep last N messages
-        preserved_messages = other_messages[-compression_config.preserve_last_n_messages:]
+        preserved_messages = other_messages[
+            -compression_config.preserve_last_n_messages :
+        ]
 
         final_messages = system_messages + preserved_messages
-        self.logger.info(f"Applied simple truncation: kept {len(final_messages)} messages")
+        self.logger.info(
+            f"Applied simple truncation: kept {len(final_messages)} messages"
+        )
 
         return final_messages, True
 
-    def _get_compression_llm(self, compression_config: CompressionConfig) -> BaseLanguageModel:
+    def _get_compression_llm(
+        self, compression_config: CompressionConfig
+    ) -> BaseLanguageModel:
         """Get LLM for compression (uses compression config or falls back to default)"""
         if compression_config.compression_llm_config:
-            return self.llm_factory.create_llm(compression_config.compression_llm_config)
+            return self.llm_factory.create_llm(
+                compression_config.compression_llm_config
+            )
         else:
             # Would need access to stage LLM - this is a simplified version
             # We could fall back and pass stage LLM or config here, but just error for now
-            raise CompressionError("No compression LLM configured and no fallback provided")
+            raise CompressionError(
+                "No compression LLM configured and no fallback provided"
+            )
 
-    def _separate_system_messages(self, messages: List[BaseMessage]) -> Tuple[List[BaseMessage], List[BaseMessage]]:
+    def _separate_system_messages(
+        self, messages: List[BaseMessage]
+    ) -> Tuple[List[BaseMessage], List[BaseMessage]]:
         """Separate system messages from other messages"""
         system_messages = [msg for msg in messages if isinstance(msg, SystemMessage)]
         other_messages = [msg for msg in messages if not isinstance(msg, SystemMessage)]
         return system_messages, other_messages
 
-    def _count_message_tokens(self, messages: List[BaseMessage], model_name: str) -> int:
+    def _count_message_tokens(
+        self, messages: List[BaseMessage], model_name: str
+    ) -> int:
         """Count tokens in message list"""
         total_tokens = 0
         for message in messages:
-            content = getattr(message, 'content', '')
+            content = getattr(message, "content", "")
             total_tokens += self.token_counter.count_tokens(str(content), model_name)
         return total_tokens
 
     def _create_tool_compression_prompt(self, messages: List[BaseMessage]) -> str:
         """Create prompt for tool-based compression"""
-        messages_text = "\n\n".join([
-            f"**{type(msg).__name__}**: {getattr(msg, 'content', '')}"
-            for msg in messages
-        ])
+        messages_text = "\n\n".join(
+            [
+                f"**{type(msg).__name__}**: {getattr(msg, 'content', '')}"
+                for msg in messages
+            ]
+        )
 
         return f"""Please compress the following conversation messages while preserving all critical information:
 
@@ -240,10 +268,12 @@ Use the compression tool to provide a comprehensive but concise summary that mai
 
     def _create_prompt_compression_request(self, messages: List[BaseMessage]) -> str:
         """Create prompt for prompt-based compression"""
-        messages_text = "\n\n".join([
-            f"**{type(msg).__name__}**: {getattr(msg, 'content', '')}"
-            for msg in messages
-        ])
+        messages_text = "\n\n".join(
+            [
+                f"**{type(msg).__name__}**: {getattr(msg, 'content', '')}"
+                for msg in messages
+            ]
+        )
 
         return f"""Please compress the following conversation messages:
 

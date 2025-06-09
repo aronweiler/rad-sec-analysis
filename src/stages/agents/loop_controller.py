@@ -53,6 +53,9 @@ class AgenticLoopController(ErrorRecoveryMixin):
         self.context_window_manager = context_window_manager
         self.compression_config = compression_config
         self.model_name = model_name
+        
+        # So we can set the data for the context window manager at runtime
+        self.context_window_manager_func = None
 
     async def execute_loop(
         self,
@@ -196,26 +199,20 @@ class AgenticLoopController(ErrorRecoveryMixin):
         # Skip if no context window manager or compression config
         if not self.context_window_manager or not self.compression_config:
             return messages, False
-
-        # Get available tools for compression
-        available_tools = {}
-        if self.compression_config.compression_tool:
-            # Get the compression tool from tool manager
-            tool_names = tool_manager.get_tool_names()
-            if self.compression_config.compression_tool in tool_names:
-                tools_list = tool_manager.get_tools_list()
-                for tool in tools_list:
-                    if tool.name == self.compression_config.compression_tool:
-                        available_tools[tool.name] = tool
-                        break
+        
+        
 
         try:
-            return await self.context_window_manager.manage_context_window(
-                messages=messages,
-                compression_config=self.compression_config,
-                model_name=self.model_name,
-                available_tools=available_tools,
-            )
+            if self.context_window_manager_func is not None:
+                return await self.context_window_manager_func(
+                    messages=messages,
+                    compression_config=self.compression_config,
+                    model_name=self.model_name
+                )
+            else:
+                raise RuntimeError(
+                    "context_window_manager_func must be set with all required arguments (e.g., incident_data, or any other data) before executing the loop."
+                )
         except Exception as e:
             self.logger.error(f"Context window management failed: {e}")
             # Return original messages if compression fails
@@ -302,8 +299,10 @@ class AgenticLoopController(ErrorRecoveryMixin):
         messages.extend([retry_message])
 
         # Apply context window management before retry
-        processed_messages, was_compressed = await self._manage_context_window(
-            messages, tool_manager
+        processed_messages, was_compressed = await self.context_window_manager_func(
+            messages=messages,
+            compression_config=self.compression_config,
+            model_name=self.model_name
         )
 
         if was_compressed:

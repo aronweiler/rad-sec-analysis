@@ -34,13 +34,13 @@ stages:
     stage: "cpe_extraction"
     enabled: true
     llm_config:
-      # provider: "openai"
-      # model_name: "gpt-4o-mini"  
-      provider: "ollama"            
-      model_name: "qwen2.5:14b"      
+      provider: "openai"
+      model_name: "gpt-4o-mini"  
+      # provider: "ollama"            
+      # model_name: "qwen2.5:14b"      
       temperature: 0  # Deterministic for consistent CPE generation
       max_tokens: 4096
-      timeout: 60  # Longer timeout for batch processing
+      timeout: 300  # Longer timeout for batch processing
       max_retries: 5
       extra_params:
         top_p: 0.9
@@ -88,7 +88,7 @@ stages:
       model_name: "gpt-4o-mini"
       temperature: 0 # Deterministic as possible
       max_tokens: 4096
-      timeout: 30
+      timeout: 300
       max_retries: 10
       extra_params:
         top_p: 0.9
@@ -99,16 +99,19 @@ stages:
     available_mcp_servers: ["vulnerability_intelligence"]
     compression_config:
       enabled: true
-      token_threshold: 50000
+      use_compression_tool: true
+      token_threshold: 25000
+      chunk_token_limit: 16384
+      final_token_limit: 8192
       compression_llm_config:
         provider: "openai"
         model_name: "gpt-4o-mini"  # Faster, cheaper model for compression
         temperature: 0
         max_tokens: 4096
-        timeout: 30
+        timeout: 300
         max_retries: 3
       fallback_strategy: "intelligent_prompt"
-      preserve_last_n_messages: 5
+      preserve_last_n_messages: 2
       preserve_system_messages: true
       max_compression_retries: 3
 
@@ -120,7 +123,7 @@ stages:
       model_name: "gpt-4o"
       temperature: 0 # Deterministic as possible
       max_tokens: 8192
-      timeout: 30
+      timeout: 300
       max_retries: 10
       extra_params:
         top_p: 0.9
@@ -130,16 +133,19 @@ stages:
     available_tools: ["submit_analysis"]
     compression_config:
       enabled: true
-      token_threshold: 50000
+      use_compression_tool: true
+      token_threshold: 25000
+      chunk_token_limit: 16384
+      final_token_limit: 8192
       compression_llm_config:
         provider: "openai"
         model_name: "gpt-4o-mini"  # Faster, cheaper model for compression
         temperature: 0
         max_tokens: 4096
-        timeout: 30
+        timeout: 300
         max_retries: 3
       fallback_strategy: "intelligent_prompt"
-      preserve_last_n_messages: 5
+      preserve_last_n_messages: 2
       preserve_system_messages: true
       max_compression_retries: 3      
 
@@ -158,5 +164,5 @@ mcp_servers:
     transport_type: "streamable_http"
     command: []  # Not needed for external server
     enabled: true
-    timeout: 30
+    timeout: 300
     env_vars: {}
