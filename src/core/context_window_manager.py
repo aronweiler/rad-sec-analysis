@@ -5,11 +5,11 @@ from typing import List, Optional, Tuple, Dict, Any
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langchain_core.language_models import BaseLanguageModel
 
-from src.core.token_manager import TokenCounter
-from src.core.llm_factory import LLMFactory
-from src.models.stage_config import CompressionConfig, CompressionStrategy
-from src.models.llm_config import LLMConfig
-from src.prompts.compression_system_prompt import COMPRESSION_SYSTEM_PROMPT
+from ..core.token_manager import TokenCounter
+from ..core.llm_factory import LLMFactory
+from ..models.stage_config import CompressionConfig, CompressionStrategy
+from ..models.llm_config import LLMConfig
+from ..prompts.compression_system_prompt import COMPRESSION_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +60,11 @@ class ContextWindowManager:
             # Attempt primary compression strategy
             if compression_config.compression_tool and available_tools:
                 compressed_messages = await self._compress_with_tool(
-                    messages, compression_config, model_name, available_tools
+                    messages, compression_config, available_tools
                 )
             else:
                 compressed_messages = await self._compress_with_prompt(
-                    messages, compression_config, model_name
+                    messages, compression_config
                 )
 
             # Verify compression was effective
@@ -75,13 +75,12 @@ class ContextWindowManager:
 
         except Exception as e:
             self.logger.warning(f"Primary compression failed: {e}, falling back...")
-            return await self._apply_fallback_compression(messages, compression_config, model_name)
+            return await self._apply_fallback_compression(messages, compression_config)
 
     async def _compress_with_tool(
         self,
         messages: List[BaseMessage],
         compression_config: CompressionConfig,
-        model_name: str,
         available_tools: Dict[str, Any]
     ) -> List[BaseMessage]:
         """Compress using configured compression tool"""
@@ -153,7 +152,6 @@ class ContextWindowManager:
         self,
         messages: List[BaseMessage],
         compression_config: CompressionConfig,
-        model_name: str
     ) -> List[BaseMessage]:
         """Compress using intelligent prompt-based compression"""
 
@@ -183,13 +181,12 @@ class ContextWindowManager:
         self,
         messages: List[BaseMessage],
         compression_config: CompressionConfig,
-        model_name: str
     ) -> Tuple[List[BaseMessage], bool]:
         """Apply fallback compression strategy"""
 
         if compression_config.fallback_strategy == CompressionStrategy.INTELLIGENT_PROMPT:
             try:
-                compressed_messages = await self._compress_with_prompt(messages, compression_config, model_name)
+                compressed_messages = await self._compress_with_prompt(messages, compression_config)
                 return compressed_messages, True
             except Exception as e:
                 self.logger.warning(f"Fallback prompt compression failed: {e}, using simple truncation")

@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
-from src.models.mcp_server_config import MCPServerConfig
-from src.models.stage_config import Stage, StageConfig
+from ..models.mcp_server_config import MCPServerConfig
+from ..models.stage_config import Stage, StageConfig
 
 
 class ApplicationConfig(BaseModel):

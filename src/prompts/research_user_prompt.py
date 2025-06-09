@@ -52,4 +52,4 @@ Use `submit_research` tool with:
 - Key insights & gaps
 - Analysis recommendations
 
-**Remember** You must respond with tool calls only. No direct responses."""
+Your response must ALWAYS be in the form of tool calls. NEVER answer directly in chat."""

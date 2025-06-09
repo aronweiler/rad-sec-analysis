@@ -10,8 +10,8 @@ from typing import Any, Awaitable, Callable, List, Optional, Tuple
 from langchain.base_language import BaseLanguageModel
 from langchain_core.messages import BaseMessage, AIMessage
 
-from src.core.context_window_manager import ContextWindowManager
-from src.models.stage_config import CompressionConfig
+from ..core.context_window_manager import ContextWindowManager
+from ..models.stage_config import CompressionConfig
 
 from .tool_manager import AgenticToolManager
 from .error_recovery_mixin import ErrorRecoveryMixin

@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
-from src.models.mcp_server_config import MCPServerConfig
+from ..models.mcp_server_config import MCPServerConfig
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain.tools import BaseTool
 

@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 
 from .base import IncidentParser, ParseResult, ParseIssue, ParseSeverity, ParseError
-from src.models.incident import (
+from ..models.incident import (
     IncidentData,
     AssetData,
     SoftwareInfo,

@@ -16,7 +16,7 @@ from langchain_core.tools import tool, InjectedToolArg
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic_core import ErrorDetails
 
-from src.models.incident import IncidentData, AssetData, SoftwareInfo
+from ..models.incident import IncidentData, AssetData, SoftwareInfo
 
 logger = logging.getLogger(__name__)
 

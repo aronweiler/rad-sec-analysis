@@ -1,10 +1,10 @@
 import logging
 from pathlib import Path
-from src.models.incident import IncidentData
-from src.models.stage_config import Stage
-from src.reports.markdown_report_generator import MarkdownReportGenerator
-from src.stages.base import StageBase
-from src.tools.lc_tools.submit_analysis_tool import AnalysisVerificationResult
+from ..models.incident import IncidentData
+from ..models.stage_config import Stage
+from ..reports.markdown_report_generator import MarkdownReportGenerator
+from ..stages.base import StageBase
+from ..tools.lc_tools.submit_analysis_tool import AnalysisVerificationResult
 
 
 class ReportStage(StageBase):

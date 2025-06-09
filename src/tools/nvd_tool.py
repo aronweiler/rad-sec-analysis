@@ -14,7 +14,7 @@ import requests
 from urllib.parse import urlencode
 from pydantic import BaseModel, Field, ConfigDict
 
-from src.models.incident_vulnerability_report import (
+from ..models.incident_vulnerability_report import (
     CVEInfo,
     IncidentVulnerabilityReport,
     SoftwareVulnerabilityReport,

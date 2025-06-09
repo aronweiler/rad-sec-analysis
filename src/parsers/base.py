@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from enum import Enum
 
-from src.models.incident import IncidentData, IncidentBatch
+from ..models.incident import IncidentData, IncidentBatch
 
 logger = logging.getLogger(__name__)
 

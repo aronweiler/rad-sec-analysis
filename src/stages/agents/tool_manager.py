@@ -11,8 +11,8 @@ from pydantic import ValidationError
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
-from src.tools.lc_tools.tool_manager import get_tool
-from src.tools.mcp_client_manager import MCPClientManager
+from ..tools.lc_tools.tool_manager import get_tool
+from ..tools.mcp_client_manager import MCPClientManager
 from .error_recovery_mixin import ErrorRecoveryMixin
 
 

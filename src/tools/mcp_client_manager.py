@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from contextlib import asynccontextmanager
 
 from .mcp_client import MCPClient
-from src.models.mcp_server_config import MCPServerConfig
+from ..models.mcp_server_config import MCPServerConfig
 from langchain.tools import BaseTool
 
 logger = logging.getLogger(__name__)

@@ -459,7 +459,7 @@ The AI agent followed this analytical process:
         section = """## 📚 Technical Appendix
 
 ### Follow-Up Investigation Recommendations
-    """
+"""
 
         if analysis.follow_up_investigations:
             section += chr(10).join(
@@ -493,7 +493,7 @@ The AI agent followed this analytical process:
 
 This section documents all tools called by the AI agent during the analysis process, demonstrating the agent's research methodology and data gathering approach.
 
-    """
+"""
 
         tool_calls = []
 
@@ -698,7 +698,7 @@ This section documents all tools called by the AI agent during the analysis proc
 
 ## Systems Requiring Priority Attention
 
-    """
+"""
 
         if high_risk_assets:
             for asset in sorted(

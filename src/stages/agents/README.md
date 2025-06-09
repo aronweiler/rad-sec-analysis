@@ -58,7 +58,7 @@ To create a new agentic stage:
 ## Example
 
 ```python
-from src.stages.agents import AgenticStageBase
+from ..stages.agents import AgenticStageBase
 
 class MyResearchStage(AgenticStageBase):
     def get_required_tools(self) -> List[str]:

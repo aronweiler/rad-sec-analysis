@@ -17,8 +17,8 @@ from .incident_research_result import (
     ResearchGap,
     ResearchConfidence,
 )
-from src.models.incident_vulnerability_report import IncidentVulnerabilityReport
-from src.models.incident import IncidentData
+from ..models.incident_vulnerability_report import IncidentVulnerabilityReport
+from ..models.incident import IncidentData
 
 
 class ResearchValidationResult(BaseModel):
