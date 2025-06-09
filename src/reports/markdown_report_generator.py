@@ -56,6 +56,9 @@ class MarkdownReportGenerator:
             self._generate_vulnerability_analysis(analysis),
             self._generate_asset_impact_assessment(analysis),
             self._generate_attack_analysis(analysis),
+            self._generate_attack_chain_analysis(analysis),  # NEW
+            self._generate_defensive_gap_analysis(analysis),  # NEW
+            self._generate_asset_cve_matrix(analysis),  # NEW
             self._generate_remediation_roadmap(analysis),
             self._generate_ai_methodology(analysis, verification_result),
             self._generate_technical_appendix(analysis),
@@ -621,6 +624,200 @@ This section documents all tools called by the AI agent during the analysis proc
         section += "\n*This tool usage log demonstrates the AI agent's systematic approach to gathering and analyzing security intelligence.*\n"
 
         return section
+    
+    def _generate_asset_cve_matrix(self, analysis: IncidentAnalysisResult) -> str:
+        """Generate asset-to-CVE impact matrix"""
+
+        section = """## 📊 Asset-CVE Impact Matrix
+
+### Critical Vulnerability Distribution Across Assets
+"""
+
+        if not analysis.asset_risk_assessments or not analysis.prioritized_relevant_cves:
+            section += "*Insufficient data for matrix generation*\n"
+            return section
+
+        # Create matrix data
+        assets = analysis.asset_risk_assessments
+        cves = analysis.prioritized_relevant_cves
+
+        # Get top 5 most critical CVEs and assets
+        top_cves = sorted(cves, key=lambda x: x.mitigation_priority, reverse=True)[:5]
+        critical_assets = [a for a in assets if a.overall_risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH]]
+
+        if not critical_assets:
+            critical_assets = sorted(assets, key=lambda x: x.vulnerability_count, reverse=True)[:5]
+
+        # Build matrix table
+        section += "| Asset | Risk Level |"
+        for cve in top_cves:
+            section += f" {cve.cve_id} |"
+        section += " Total Critical |\n"
+
+        section += "|-------|------------|"
+        for _ in top_cves:
+            section += "------|"
+        section += "---------------|\n"
+
+        for asset in critical_assets:
+            risk_icon = self.risk_level_icons[asset.overall_risk_level]
+            section += f"| {asset.hostname} | {risk_icon} {asset.overall_risk_level.value.title()} |"
+
+            for cve in top_cves:
+                # Check if this CVE affects this asset
+                if cve.cve_id in asset.critical_vulnerabilities:
+                    section += " ✅ |"
+                else:
+                    # Check if CVE affects any software on this asset
+                    cve_affects_asset = any(
+                        software in cve.affected_software 
+                        for software in [asset.role]  # This is simplified - in real implementation, you'd have more detailed software inventory
+                    )
+                    section += " ⚠️ |" if cve_affects_asset else " ❌ |"
+
+            section += f" {len(asset.critical_vulnerabilities)} |\n"
+
+        section += "\n**Legend:** ✅ Confirmed Critical | ⚠️ Potentially Affected | ❌ Not Affected\n"
+
+        # Add summary insights
+        section += "\n### Key Insights\n"
+
+        most_vulnerable_asset = max(critical_assets, key=lambda x: len(x.critical_vulnerabilities))
+        section += f"- **Most Vulnerable Asset:** {most_vulnerable_asset.hostname} with {len(most_vulnerable_asset.critical_vulnerabilities)} critical vulnerabilities\n"
+
+        if top_cves:
+            most_widespread_cve = max(top_cves, key=lambda cve: sum(1 for asset in critical_assets if cve.cve_id in asset.critical_vulnerabilities))
+            affected_count = sum(1 for asset in critical_assets if most_widespread_cve.cve_id in asset.critical_vulnerabilities)
+            section += f"- **Most Widespread CVE:** {most_widespread_cve.cve_id} affecting {affected_count} critical assets\n"
+
+        return section
+    
+    def _generate_defensive_gap_analysis(self, analysis: IncidentAnalysisResult) -> str:
+        """Generate comprehensive defensive gap analysis"""
+
+        section = """## 🛡️ Defensive Gap Analysis
+
+### Security Control Weaknesses
+"""
+
+        if not analysis.ttp_analysis:
+            section += "*No TTP analysis available for defensive gap assessment*\n"
+            return section
+
+        # Collect all defensive gaps from TTPs
+        all_gaps = []
+        gap_to_ttps = {}
+
+        for ttp in analysis.ttp_analysis:
+            for gap in ttp.defensive_gaps:
+                if gap not in gap_to_ttps:
+                    gap_to_ttps[gap] = []
+                gap_to_ttps[gap].append(ttp)
+                if gap not in all_gaps:
+                    all_gaps.append(gap)
+
+        if not all_gaps:
+            section += "*No specific defensive gaps identified*\n"
+            return section
+
+        # Group gaps by attack stage
+        stage_gaps = {}
+        for gap, ttps in gap_to_ttps.items():
+            for ttp in ttps:
+                stage = ttp.attack_stage
+                if stage not in stage_gaps:
+                    stage_gaps[stage] = []
+                if gap not in stage_gaps[stage]:
+                    stage_gaps[stage].append(gap)
+
+        section += "### Gaps by Attack Stage\n"
+
+        for stage, gaps in stage_gaps.items():
+            section += f"\n#### {stage}\n"
+            for gap in gaps:
+                related_ttps = [ttp.ttp_id for ttp in gap_to_ttps[gap]]
+                section += f"- **{gap}** (Related TTPs: {', '.join(related_ttps)})\n"
+
+        # Detection opportunities summary
+        section += "\n### Detection and Mitigation Opportunities\n"
+
+        detection_opportunities = []
+        for ttp in analysis.ttp_analysis:
+            for opportunity in ttp.detection_opportunities:
+                if opportunity not in detection_opportunities:
+                    detection_opportunities.append(opportunity)
+
+        if detection_opportunities:
+            for opportunity in detection_opportunities:
+                section += f"- {opportunity}\n"
+        else:
+            section += "*No specific detection opportunities identified*\n"
+
+        return section
+    
+    def _generate_attack_chain_analysis(self, analysis: IncidentAnalysisResult) -> str:
+        """Generate detailed attack chain analysis section"""
+
+        section = """## 🔗 Attack Chain Analysis
+
+### Vulnerability Exploitation Chains
+"""
+
+        if not analysis.potential_attack_chains:
+            section += "*No attack chains identified*\n"
+            return section
+
+        # Sort chains by likelihood (highest first)
+        likelihood_order = {
+            ExploitationLikelihood.VERY_HIGH: 0,
+            ExploitationLikelihood.HIGH: 1,
+            ExploitationLikelihood.MEDIUM: 2,
+            ExploitationLikelihood.LOW: 3,
+            ExploitationLikelihood.VERY_LOW: 4,
+            ExploitationLikelihood.UNKNOWN: 5,
+        }
+        sorted_chains = sorted(
+            analysis.potential_attack_chains,
+            key=lambda x: likelihood_order[x.likelihood]
+        )
+
+        # Summary table
+        section += """| Chain ID | Description | Likelihood | CVEs Involved | Impact Level |
+|----------|-------------|------------|---------------|--------------|
+"""
+
+        for chain in sorted_chains:
+            likelihood_icon = self.exploitation_icons[chain.likelihood]
+            cve_count = len(chain.cves_in_chain)
+            impact_preview = chain.impact_assessment[:50] + "..." if len(chain.impact_assessment) > 50 else chain.impact_assessment
+
+            section += f"| {chain.chain_id} | {chain.description[:40]}{'...' if len(chain.description) > 40 else ''} | {likelihood_icon} {chain.likelihood.value.title()} | {cve_count} CVEs | {impact_preview} |\n"
+
+        # Detailed analysis for high-likelihood chains
+        high_likelihood_chains = [
+            chain for chain in sorted_chains 
+            if chain.likelihood in [ExploitationLikelihood.VERY_HIGH, ExploitationLikelihood.HIGH]
+        ]
+
+        if high_likelihood_chains:
+            section += "\n### High-Likelihood Attack Chains (Detailed Analysis)\n"
+
+            for chain in high_likelihood_chains:
+                likelihood_icon = self.exploitation_icons[chain.likelihood]
+                section += f"""
+#### {likelihood_icon} {chain.chain_id}: {chain.description}
+
+**Exploitation Likelihood:** {chain.likelihood.value.title()}  
+**CVEs in Chain:** {', '.join(chain.cves_in_chain)}  
+**Potential Impact:** {chain.impact_assessment}
+
+**Supporting Evidence:**
+{chr(10).join([f'- {evidence}' for evidence in chain.supporting_evidence]) if chain.supporting_evidence else '- No specific evidence documented'}
+
+**Risk Assessment:** This attack chain represents a {'critical' if chain.likelihood in [ExploitationLikelihood.VERY_HIGH] else 'high'} risk pathway that could enable significant compromise.
+"""
+
+        return section
 
     def generate_customer_report(
         self, verification_result: AnalysisVerificationResult
@@ -718,6 +915,27 @@ This section documents all tools called by the AI agent during the analysis proc
                 report += "\n"
         else:
             report += "*All analyzed systems are at acceptable risk levels.*\n"
+
+        # Add attack chain summary for customer report
+        if analysis.potential_attack_chains:
+            high_likelihood_chains = [
+                chain for chain in analysis.potential_attack_chains 
+                if chain.likelihood in [ExploitationLikelihood.VERY_HIGH, ExploitationLikelihood.HIGH]
+            ]
+
+            if high_likelihood_chains:
+                report += """
+## Attack Chain Analysis
+
+The following attack scenarios represent the most likely paths an attacker could take:
+
+"""
+                for i, chain in enumerate(high_likelihood_chains[:3], 1):  # Top 3 chains
+                    likelihood_icon = self.exploitation_icons[chain.likelihood]
+                    report += f"**{i}. {chain.description}**\n"
+                    report += f"   - **Likelihood:** {likelihood_icon} {chain.likelihood.value.title()}\n"
+                    report += f"   - **Vulnerabilities Used:** {', '.join(chain.cves_in_chain[:3])}{'...' if len(chain.cves_in_chain) > 3 else ''}\n"
+                    report += f"   - **Potential Impact:** {chain.impact_assessment}\n\n"
 
         report += f"""
 

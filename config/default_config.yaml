@@ -95,7 +95,7 @@ stages:
     settings:
       strict_version_matching: true # strict version matching for CVEs
       max_cves_per_software: 2000 # Max CVEs capable of being returned by NVD database in one call
-      max_age_days: 365 # Maximum age of CVEs to consider
+      max_age_days: 180 # Maximum age of CVEs to consider
       prioritize_recent_days: 30 # Prioritize CVEs from the last 30 days
       min_relevance_score: 0.7 # Minimum relevance score for CVEs
       lookback_years: 2 # Look back at most 2 years for CVEs
@@ -111,7 +111,7 @@ stages:
     enabled: true
     llm_config:
       provider: "openai"
-      model_name: "gpt-4o"
+      model_name: "gpt-4o-mini"
       temperature: 0 # Deterministic as possible
       max_tokens: 4096
       timeout: 30
