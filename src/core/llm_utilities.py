@@ -3,6 +3,12 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 from langchain_core.messages import BaseMessage
 
+from ..core.token_manager import TokenCounter
+
+logger = logging.getLogger(__name__)
+token_counter = TokenCounter()
+
+
 async def llm_invoke_with_retry(
     llm_with_tools,
     messages: Union[List[BaseMessage], List[Dict[str, Any]]],
@@ -10,7 +16,7 @@ async def llm_invoke_with_retry(
     max_retries: int = 5,
     initial_wait: float = 15.0,
     backoff_multiplier: float = 2.0,
-    **kwargs
+    **kwargs,
 ) -> Any:
     """
     Wrapper function for LangChain LLM ainvoke with exponential backoff retry logic.
@@ -38,8 +44,15 @@ async def llm_invoke_with_retry(
             invoke_args = [messages]
             invoke_kwargs = kwargs.copy()
 
+            # Convert messages to dicts
+            message_dicts = [msg.model_dump(mode="json") for msg in messages]
+
+            logger.info(
+                f"LLM call attempt {attempt + 1} with {len(messages)} messages estimated at {token_counter.estimate_tokens_for_messages(message_dicts)} tokens"
+            )
+
             if config is not None:
-                invoke_kwargs['config'] = config
+                invoke_kwargs["config"] = config
 
             # Make the LLM call
             response = await llm_with_tools.ainvoke(*invoke_args, **invoke_kwargs)
@@ -50,11 +63,13 @@ async def llm_invoke_with_retry(
 
             # If this was the last attempt, don't wait and re-raise
             if attempt == max_retries:
-                logging.error(f"LLM call failed after {max_retries} retries. Last error: {str(e)}")
+                logging.error(
+                    f"LLM call failed after {max_retries} retries. Last error: {str(e)}"
+                )
                 raise e
 
             # Calculate wait time with exponential backoff
-            wait_time = initial_wait * (backoff_multiplier ** attempt)
+            wait_time = initial_wait * (backoff_multiplier**attempt)
 
             logging.warning(
                 f"LLM call attempt {attempt + 1} failed: {str(e)}. "

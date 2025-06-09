@@ -63,10 +63,10 @@ stages:
     stage: "cpe_extraction"
     enabled: true
     llm_config:
-      # provider: "ollama"      
-      provider: "openai"
-      # model_name: "qwen2.5:7b"
-      model_name: "gpt-4o-mini"  
+      # provider: "openai"
+      # model_name: "gpt-4o-mini"  
+      provider: "ollama"            
+      model_name: "qwen2.5:14b"      
       temperature: 0  # Deterministic for consistent CPE generation
       max_tokens: 4096
       timeout: 60  # Longer timeout for batch processing
@@ -145,8 +145,8 @@ stages:
     stage: "incident_analysis"
     enabled: true
     llm_config:
-      provider: "anthropic"
-      model_name: "claude-sonnet-4-0"
+      provider: "openai"
+      model_name: "gpt-4o"
       temperature: 0 # Deterministic as possible
       max_tokens: 8192
       timeout: 30
@@ -154,7 +154,7 @@ stages:
       extra_params:
         top_p: 0.9
     max_final_retries: 3
-    max_iterations: 3
+    max_iterations: 2
     # available_tools: ["web_search", "web_scrape"] # These hypothetical tools could be used for real-time info gathering
     available_tools: ["submit_analysis"]
     compression_config:

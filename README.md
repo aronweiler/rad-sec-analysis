@@ -116,6 +116,66 @@ python -m src.main --file data/your_incident_data.json
 python -m src.main --config config/your_config.yaml
 ```
 
+### Setting Up Ollama for Local LLM Inference
+
+#### Quick Setup
+
+1. **Install Ollama**
+   ```bash
+   # Windows: Download from https://ollama.ai/download/windows
+   # macOS: brew install ollama
+   # Linux: curl -fsSL https://ollama.ai/install.sh | sh
+   ```
+
+2. **Start Service & Download Models**
+   ```bash
+   ollama serve
+   ollama pull qwen2.5:14b    # Fast, 4GB RAM
+   ollama pull qwen2.5:14b   # Better quality, 8GB RAM
+   ```
+
+#### Configuration
+
+Update your config file to use Ollama:
+
+```yaml
+stages:
+  cpe_extraction:
+    llm_config:
+      provider: "ollama"
+      model_name: "qwen2.5:14b"
+      temperature: 0
+      max_tokens: 4096
+      timeout: 60
+      extra_params:
+        format: "json"
+        top_p: 0.9
+```
+
+#### Troubleshooting Ollama
+
+- **Service not running**: Run `ollama serve`
+- **Model not found**: Run `ollama pull model_name`
+- **Out of memory**: Use smaller model (`qwen2.5:14b`)
+- **Test setup**: `curl http://localhost:11434/api/generate -d '{"model": "qwen2.5:14b", "prompt": "Hello"}'`
+
+#### Hybrid Setup (Recommended)
+
+Use Ollama for bulk processing, cloud APIs for complex analysis:
+
+```yaml
+stages:
+  cpe_extraction:
+    llm_config:
+      provider: "ollama"
+      model_name: "qwen2.5:14b"
+      
+  incident_analysis:
+    llm_config:
+      provider: "openai"
+      model_name: "gpt-4o"
+```
+
 ### Command Line Options
 
 - `--file, -f`: Path to the incidents file (default: `data/incident_data.json`)
