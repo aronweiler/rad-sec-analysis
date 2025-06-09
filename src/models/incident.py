@@ -16,9 +16,16 @@ class SoftwareInfo(BaseModel):
 
     name: str = Field(..., description="Software name")
     version: str = Field(..., description="Software version")
+    cpe_string: Optional[str] = Field(None, description="Generated CPE string for this software")
 
     class Config:
-        schema_extra = {"example": {"name": "Apache Tomcat", "version": "9.0.50"}}
+        schema_extra = {
+            "example": {
+                "name": "Apache Tomcat", 
+                "version": "9.0.50",
+                "cpe_string": "cpe:2.3:a:apache:tomcat:9.0.50:*:*:*:*:*:*:*"
+            }
+        }
 
 
 class AssetData(BaseModel):
@@ -31,6 +38,9 @@ class AssetData(BaseModel):
         default_factory=list, description="List of installed software"
     )
     role: str = Field(..., description="Asset role/function")
+    cpe_strings: List[str] = Field(
+        default_factory=list, description="Generated CPE strings for this asset (OS, hardware, etc.)"
+    )
 
     # Don't validate IP, since we can have other values like 'unknown' or 'N/A'
     # @field_validator("ip_address")
@@ -50,10 +60,21 @@ class AssetData(BaseModel):
                 "ip_address": "10.10.5.20",
                 "os": "CentOS 7",
                 "installed_software": [
-                    {"name": "Apache Tomcat", "version": "9.0.50"},
-                    {"name": "MySQL Connector/J", "version": "8.0.25"},
+                    {
+                        "name": "Apache Tomcat", 
+                        "version": "9.0.50",
+                        "cpe_string": "cpe:2.3:a:apache:tomcat:9.0.50:*:*:*:*:*:*:*"
+                    },
+                    {
+                        "name": "MySQL Connector/J", 
+                        "version": "8.0.25",
+                        "cpe_string": "cpe:2.3:a:mysql:connector%2fj:8.0.25:*:*:*:*:*:*:*"
+                    },
                 ],
                 "role": "Internal Web Application Server",
+                "cpe_strings": [
+                    "cpe:2.3:o:centos:centos:7:*:*:*:*:*:*:*"
+                ]
             }
         }
 
@@ -135,7 +156,39 @@ class IncidentData(BaseModel):
     @property
     def ioc_count(self) -> int:
         """Number of IOCs"""
-        return len(self.indicators_of_compromise)
+        return len(self.indicators_of_compromise)    
+
+    def get_assets_by_role(self, role: str) -> List[AssetData]:
+        """Get assets filtered by role"""
+        return [
+            asset
+            for asset in self.affected_assets
+            if role.lower() in asset.role.lower()
+        ]
+
+    def get_iocs_by_type(self, ioc_type: IOCType) -> List[IOCData]:
+        """Get IOCs filtered by type"""
+        return [ioc for ioc in self.indicators_of_compromise if ioc.type == ioc_type]
+    
+    def get_all_cpes(self) -> Dict[str, List[str]]:
+        """Get all CPE strings from all assets and software"""
+        all_cpes = {
+            "asset_cpes": [],
+            "software_cpes": [],
+            "total_count": 0
+        }
+
+        for asset in self.affected_assets:
+            # Add asset-level CPEs
+            all_cpes["asset_cpes"].extend(asset.cpe_strings)
+
+            # Add software CPEs
+            for software in asset.installed_software:
+                if software.cpe_string:
+                    all_cpes["software_cpes"].append(software.cpe_string)
+
+        all_cpes["total_count"] = len(all_cpes["asset_cpes"]) + len(all_cpes["software_cpes"])
+        return all_cpes
 
     def get_unique_software(self) -> List[SoftwareInfo]:
         """Get unique software across all affected assets"""
@@ -150,18 +203,6 @@ class IncidentData(BaseModel):
                     unique_software.append(software)
 
         return unique_software
-
-    def get_assets_by_role(self, role: str) -> List[AssetData]:
-        """Get assets filtered by role"""
-        return [
-            asset
-            for asset in self.affected_assets
-            if role.lower() in asset.role.lower()
-        ]
-
-    def get_iocs_by_type(self, ioc_type: IOCType) -> List[IOCData]:
-        """Get IOCs filtered by type"""
-        return [ioc for ioc in self.indicators_of_compromise if ioc.type == ioc_type]
 
     class Config:
         schema_extra = {
@@ -240,3 +281,5 @@ class IncidentBatch(BaseModel):
                 "created_at": "2023-08-01T10:00:00Z",
             }
         }
+
+

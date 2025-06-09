@@ -10,6 +10,14 @@ from typing import Dict, List, Optional, Callable, Any, Union
 from langchain.tools import BaseTool
 from langchain.tools.base import Tool
 
+from .nvd_tool_wrappers import nvd_tools
+from .submit_analysis_tool import submit_analysis_tools
+from .submit_research_tool import submit_research_tools
+from .generate_cpes_tool import generate_cpes_tools
+
+# Register all tools
+TOOLS_TO_REGISTER = nvd_tools + submit_analysis_tools + submit_research_tools + generate_cpes_tools
+
 logger = logging.getLogger(__name__)
 
 
@@ -181,12 +189,7 @@ def get_tool_registry() -> ToolRegistry:
 def _register_default_tools():
     """Register default tools from nvd_tool_wrappers"""
     try:
-        from .nvd_tool_wrappers import nvd_tools
-        from .submit_analysis_tool import submit_analysis_tools
-        from .submit_research_tool import submit_research_tools
         
-        # Register all tools
-        tools_to_register = nvd_tools + submit_analysis_tools + submit_research_tools
         
         registry = get_tool_registry()
         
@@ -289,3 +292,4 @@ def get_tools_for_stage(stage_tools: Optional[List[str]] = None) -> List[BaseToo
         return registry.get_all_tools()
     
     return registry.get_tools_by_names(stage_tools)
+

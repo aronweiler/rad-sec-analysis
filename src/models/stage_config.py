@@ -8,6 +8,7 @@ class Stage(str, Enum):
     """Stages in the analysis pipeline"""
 
     INCIDENT_PRE_PROCESSING = "incident_pre_processing"
+    CPE_EXTRACTION = "cpe_extraction"
     INCIDENT_RESEARCH = "incident_research"
     INCIDENT_ANALYSIS = "incident_analysis"
     REPORT_GENERATION = "report_generation"

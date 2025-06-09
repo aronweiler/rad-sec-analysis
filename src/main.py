@@ -14,6 +14,7 @@ from src.parsers import IncidentParserManager
 from src.reports.markdown_report_generator import MarkdownReportGenerator
 from src.stages.analysis_stage import AnalysisStage
 from src.stages.base import StageBase
+from src.stages.cpe_extraction_stage import CPEExtractionStage
 from src.stages.pre_processing_stage import IncidentPreProcessingStage
 from src.stages.report_stage import ReportStage
 from src.stages.research_stage import ResearchStage
@@ -314,6 +315,12 @@ async def main():
         # Create the stages
         stages: List[StageBase] = []
 
+        # Create the cpe extraction stage
+        cpe_extraction_stage = CPEExtractionStage(
+            config=config, mcp_client_manager=mcp_client_manager
+        )
+        stages.append(cpe_extraction_stage)
+
         # Create the pre-processing stage
         pre_processing_stage = IncidentPreProcessingStage(
             config=config, mcp_client_manager=mcp_client_manager
@@ -325,7 +332,7 @@ async def main():
             config=config, mcp_client_manager=mcp_client_manager
         )
         stages.append(analysis_stage)
-        
+
         # Create the analysis stage
         analysis_stage = AnalysisStage(
             config=config, mcp_client_manager=mcp_client_manager
@@ -344,8 +351,8 @@ async def main():
                 )
                 continue
 
-            # Initial stage input is the parsed incident
-            stage_input = parsed.incident
+            # Initial stage input is the list of parsed incidents for CPE extraction
+            stage_input = parsed_incidents
             for stage in stages:
                 logger.info(f"Running stage: {stage.stage_type.value}")
 

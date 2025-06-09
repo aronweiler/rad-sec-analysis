@@ -34,27 +34,42 @@ stages:
     enabled: true
     settings:
       strict_version_matching: true # strict version matching for CVEs
-      max_cves_per_software: 500
+      max_cves_per_software: 2000 # Max CVEs capable of being returned by NVD database in one call
       max_age_days: 365 # Maximum age of CVEs to consider
       prioritize_recent_days: 30 # Prioritize CVEs from the last 30 days
       min_relevance_score: 0.7 # Minimum relevance score for CVEs
+      lookback_years: 2 # Look back at most 2 years for CVEs
+      post_incident_days: 90 # Post-incident day CVEs to consider
 
-  # incident_research:
-  #   stage: "incident_research"
-  #   enabled: true
-  #   llm_config:
-  #     provider: "anthropic"
-  #     model_name: "claude-3-5-haiku-latest"
-  #     temperature: 0 # Deterministic as possible
-  #     max_tokens: 4096
-  #     timeout: 30
-  #     max_retries: 10
-  #     extra_params:
-  #       top_p: 0.9
-  #   max_final_retries: 3
-  #   max_iterations: 3
-  #   available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_research"]
-  #   available_mcp_servers: ["vulnerability_intelligence"]
+  cpe_extraction:
+    stage: "cpe_extraction"
+    enabled: true
+    llm_config:
+      provider: "ollama"
+      model_name: "llama3.2:latest"  
+      temperature: 0  # Deterministic for consistent CPE generation
+      max_tokens: 4096
+      timeout: 60  # Longer timeout for batch processing
+      max_retries: 5
+      extra_params:
+        top_p: 0.9
+    max_final_retries: 3
+    max_iterations: 1  # Auto-terminate after one iteration, since we're processing all of the incidents at once (stage will batch them)
+    available_tools: ["generate_cpes_for_batch"]
+    settings:
+      # Batch processing configuration
+      asset_batch_size: 20  # Number of incidents per batch
+
+      # Validation thresholds for preventing hallucinations
+      hostname_similarity_threshold: 0.8
+      software_name_similarity_threshold: 0.7
+      software_version_similarity_threshold: 0.8
+      vendor_product_similarity_threshold: 0.6
+
+      # Validation strictness settings
+      strict_ip_matching: true  # Require exact IP address matches
+      strict_hostname_matching: false  # Allow similarity-based hostname matching
+
   incident_research:
     stage: "incident_research"
     enabled: true
@@ -72,6 +87,23 @@ stages:
     max_iterations: 3
     available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_research"]
     available_mcp_servers: ["vulnerability_intelligence"]
+
+  # incident_research:
+  #   stage: "incident_research"
+  #   enabled: true
+  #   llm_config:
+  #     provider: "anthropic"
+  #     model_name: "claude-3-5-haiku-latest"
+  #     temperature: 0 # Deterministic as possible
+  #     max_tokens: 4096
+  #     timeout: 30
+  #     max_retries: 10
+  #     extra_params:
+  #       top_p: 0.9
+  #   max_final_retries: 3
+  #   max_iterations: 3
+  #   available_tools: ["search_cves_by_keyword", "get_cve_details", "submit_research"]
+  #   available_mcp_servers: ["vulnerability_intelligence"]
 
   incident_analysis:
     stage: "incident_analysis"

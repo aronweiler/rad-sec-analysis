@@ -182,10 +182,10 @@ class IncidentPreProcessingStage(StageBase):
         # Calculate date filters based on incident date if available
         if incident_date:
             # Primary search: CVEs published before the incident (lookback period)
-            lookback_years = 3  # Look back 3 years from incident date
+            lookback_years = int(self.stage_config.settings.get('lookback_years', 3))
             primary_start = incident_date - timedelta(days=lookback_years * 365)
             primary_end = incident_date  # Secondary search: CVEs published shortly after incident (for post-incident discoveries)
-            post_incident_days = 90  # 90 days after incident
+            post_incident_days = int(self.stage_config.settings.get('post_incident_days', 30))
             secondary_start = incident_date
             secondary_end = min(
                 incident_date + timedelta(days=post_incident_days),
@@ -204,7 +204,7 @@ class IncidentPreProcessingStage(StageBase):
             secondary_end = None
 
         # Strategy 1: Primary search (pre-incident or recent CVEs)
-        self.logger.debug(
+        self.logger.info(
             f"Primary search: CVEs from {primary_start.strftime('%Y-%m-%d')} to {primary_end.strftime('%Y-%m-%d')}"
         )
 
@@ -212,7 +212,7 @@ class IncidentPreProcessingStage(StageBase):
             software,
             primary_start,
             primary_end,
-            max_results * 2 // 3,
+            max_results, 
             strict_version_matching,
         )
 
@@ -415,7 +415,7 @@ class IncidentPreProcessingStage(StageBase):
 
                 term_cves = self.nvd_tool.search_cves_by_keyword(
                     term,
-                    min(max_results - len(all_cves), 25),
+                    max_results - len(all_cves),
                     start_date=chunk_start,
                     end_date=chunk_end,
                 )

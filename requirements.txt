@@ -1,5 +1,6 @@
 fastapi
 langchain
+langchain_ollama
 langchain-openai
 langchain-anthropic
 langchain-mcp-adapters
