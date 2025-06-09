@@ -194,7 +194,7 @@ def _register_default_tools():
         registry = get_tool_registry()
         
         # Register all tools
-        for tool in tools_to_register:
+        for tool in TOOLS_TO_REGISTER:
             if isinstance(tool, BaseTool):
                 registry.register_tool(tool)            
             elif callable(tool):
@@ -204,7 +204,7 @@ def _register_default_tools():
                     registry.register_tool_function(tool_name, tool)
                     
         
-        logger.info(f"Registered {len(tools_to_register)} tools")
+        logger.info(f"Registered {len(TOOLS_TO_REGISTER)} tools")
         
     except ImportError as e:
         logger.warning(f"Could not import tools: {e}")

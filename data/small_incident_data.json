@@ -1,0 +1,88 @@
+[
+  {
+    "incident_id": "INC-2023-08-02-005",
+    "timestamp": "2023-08-02T10:45:00Z",
+    "title": "Suspicious Activity on Database Server",
+    "description": "Unusual queries and large data transfers observed from the database server to an external IP.",
+    "affected_assets": [
+      {
+        "hostname": "db-server-01",
+        "ip_address": "192.168.1.150",
+        "os": "Ubuntu 20.04 LTS",
+        "installed_software": [
+          { "name": "PostgreSQL", "version": "12.7" },
+          { "name": "OpenSSL", "version": "1.1.1f" }
+        ],
+        "role": "Production Database Server"
+      }
+    ],
+    "observed_ttps": [
+      {
+        "framework": "MITRE ATT&CK",
+        "id": "T1041",
+        "name": "Exfiltration Over C2 Channel"
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "id": "T1059.004",
+        "name": "Command and Scripting Interpreter: SQL"
+      }
+    ],
+    "indicators_of_compromise": [
+      {
+        "type": "ip_address",
+        "value": "104.20.30.40",
+        "context": "External destination IP"
+      },
+      {
+        "type": "database_query_pattern",
+        "value": "SELECT * FROM sensitive_table",
+        "context": "Observed query pattern"
+      }
+    ],
+    "initial_findings": "Potential data exfiltration from database server."
+  },
+  {
+    "incident_id": "INC-2023-08-02-006",
+    "timestamp": "2023-08-02T13:10:00Z",
+    "title": "Web Server Compromise via CMS Vulnerability",
+    "description": "Alerts indicate successful exploitation of a known vulnerability in the installed CMS on a public-facing web server.",
+    "affected_assets": [
+      {
+        "hostname": "public-web-03",
+        "ip_address": "52.2.3.4",
+        "os": "Ubuntu 22.04 LTS",
+        "installed_software": [
+          { "name": "WordPress", "version": "6.0" },
+          { "name": "Apache HTTP Server", "version": "2.4.52" }
+        ],
+        "role": "Public Web Server"
+      }
+    ],
+    "observed_ttps": [
+      {
+        "framework": "MITRE ATT&CK",
+        "id": "T1190",
+        "name": "Exploit Public-Facing Application"
+      },
+      {
+        "framework": "MITRE ATT&CK",
+        "id": "T1505.003",
+        "name": "Server Software: Web Shell"
+      }
+    ],
+    "indicators_of_compromise": [
+      {
+        "type": "file_path",
+        "value": "/var/www/html/wp-content/uploads/shell.php",
+        "context": "Suspicious file detected"
+      },
+      {
+        "type": "http_request_pattern",
+        "value": "POST /wp-admin/admin-ajax.php?action=...",
+        "context": "Exploitation attempt pattern"
+      }
+    ],
+    "initial_findings": "Web server compromised via CMS vulnerability, web shell uploaded."
+  }
+]

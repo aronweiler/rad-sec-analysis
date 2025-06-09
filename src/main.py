@@ -15,7 +15,7 @@ from src.reports.markdown_report_generator import MarkdownReportGenerator
 from src.stages.analysis_stage import AnalysisStage
 from src.stages.base import StageBase
 from src.stages.cpe_extraction_stage import CPEExtractionStage
-from src.stages.pre_processing_stage import IncidentPreProcessingStage
+from src.stages.incident_pre_processing_stage import IncidentPreProcessingStage
 from src.stages.report_stage import ReportStage
 from src.stages.research_stage import ResearchStage
 from src.tools.mcp_client_manager import MCPClientManager
@@ -313,13 +313,7 @@ async def main():
         # print("Incident parsing statistics:", json.dumps(statistics, indent=2))
 
         # Create the stages
-        stages: List[StageBase] = []
-
-        # Create the cpe extraction stage
-        cpe_extraction_stage = CPEExtractionStage(
-            config=config, mcp_client_manager=mcp_client_manager
-        )
-        stages.append(cpe_extraction_stage)
+        stages: List[StageBase] = []        
 
         # Create the pre-processing stage
         pre_processing_stage = IncidentPreProcessingStage(
@@ -342,17 +336,21 @@ async def main():
         # Create the report generation stage
         report_stage = ReportStage(config=config, mcp_client_manager=mcp_client_manager)
         stages.append(report_stage)
+        
+        # Create the cpe extraction stage, which is special and invoked separately
+        cpe_extraction_stage = CPEExtractionStage(
+            config=config, mcp_client_manager=mcp_client_manager
+        )
+        
+        # First run the CPE extraction stage separately to augment incidents with CPE data
+        incidents = await cpe_extraction_stage.run(parsed_incidents)
 
         # Evaluate each of the parsed incidents
-        for parsed in parsed_incidents:
-            if not parsed.success:
-                logger.warning(
-                    f"Skipping incident due to parsing errors: {'\n'.join([i.message for i in parsed.issues])}"
-                )
-                continue
-
-            # Initial stage input is the list of parsed incidents for CPE extraction
-            stage_input = parsed_incidents
+        for incident in incidents:
+            # Initial stage input is the incident we're on
+            stage_input = incident
+            
+            # Run each stage sequentially
             for stage in stages:
                 logger.info(f"Running stage: {stage.stage_type.value}")
 

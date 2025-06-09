@@ -80,38 +80,82 @@ class ResearchStage(AgenticStageBase):
         incident_vulnerability_report = kwargs["incident_vulnerability_report"]
         incident_data = kwargs["incident_data"]
 
-        # Format affected assets
-        affected_assets_info = []
-        for software_report in incident_vulnerability_report.software_reports:
-            software = software_report.software
-            affected_assets_info.append(
-                f"- **{software.name} {software.version}**: "
-                f"{software_report.total_count} vulnerabilities "
-                f"(Critical: {software_report.critical_count}, "
-                f"High: {software_report.high_count}, "
-                f"Medium: {software_report.medium_count}, "
-                f"Low: {software_report.low_count})"
+        # Format affected assets summary with software details
+        affected_assets_summary = []
+        for asset in incident_data.affected_assets:
+            software_list = ", ".join([f"{s.name} {s.version}" for s in asset.installed_software[:3]])
+            if len(asset.installed_software) > 3:
+                software_list += f" (+{len(asset.installed_software)-3} more)"
+            affected_assets_summary.append(
+                f"**{asset.hostname}** ({asset.role}): {software_list}"
             )
 
-        # Create a simplified vulnerability report for the prompt
-        vulnerability_summary = {
-            "total_vulnerabilities": incident_vulnerability_report.total_vulnerabilities,
-            "critical_vulnerabilities": incident_vulnerability_report.critical_vulnerabilities,
-            "high_vulnerabilities": incident_vulnerability_report.high_vulnerabilities,
-            "medium_vulnerabilities": incident_vulnerability_report.medium_vulnerabilities,
-            "low_vulnerabilities": incident_vulnerability_report.low_vulnerabilities,
-            "most_vulnerable_software": (
-                {
-                    "name": incident_vulnerability_report.most_vulnerable_software.name,
-                    "version": incident_vulnerability_report.most_vulnerable_software.version,
-                }
-                if incident_vulnerability_report.most_vulnerable_software
-                else None
-            ),
-            "software_summary": affected_assets_info,
-        }
+        # Extract top priority CVEs (highest CVSS scores)
+        all_cves = []
+        for software_report in incident_vulnerability_report.software_reports:
+            all_cves.extend(software_report.cves)
+        
+        top_cves = sorted(
+            [cve for cve in all_cves if cve.cvss_v3_score and cve.cvss_v3_score >= 7.0],
+            key=lambda x: (x.cvss_v3_score, x.relevance_score),
+            reverse=True
+        )[:10]
+        
+        top_cves_list = []
+        for cve in top_cves:
+            cwe_info = f" ({cve.weaknesses[0]})" if cve.weaknesses else ""
+            top_cves_list.append(
+                f"**{cve.cve_id}**: CVSS {cve.cvss_v3_score} ({cve.cvss_v3_severity}){cwe_info} - {cve.description[:100]}..."
+            )
 
-        # Create initial messages
+        # Extract recent CVEs (last 90 days)
+        recent_cves = []
+        for software_report in incident_vulnerability_report.software_reports:
+            recent_cves.extend([cve for cve in software_report.recent_cves if cve.age_days <= 90])
+        
+        recent_cves_list = []
+        for cve in sorted(recent_cves, key=lambda x: x.published_date, reverse=True)[:8]:
+            recent_cves_list.append(
+                f"**{cve.cve_id}**: {cve.cvss_v3_severity or 'N/A'} - {cve.published_date.strftime('%m/%d')} - {cve.description[:80]}..."
+            )
+
+        # Extract CPE strings for precise research
+        cpe_data = incident_data.get_all_cpes()
+        cpe_list = []
+        # Show key software CPEs
+        for cpe in cpe_data["software_cpes"][:8]:
+            cpe_list.append(f"- {cpe}")
+        # Show key asset CPEs  
+        for cpe in cpe_data["asset_cpes"][:5]:
+            cpe_list.append(f"- {cpe}")
+
+        # Format observed TTPs concisely
+        if incident_data.observed_ttps:
+            observed_ttps_info = "\n".join([
+                f"**{ttp.id}**: {ttp.name}" for ttp in incident_data.observed_ttps
+            ])
+        else:
+            observed_ttps_info = "None specified"
+
+        # Format indicators concisely
+        if incident_data.indicators_of_compromise:
+            indicators_info = "\n".join([
+                f"**{ioc.type.value}**: {ioc.value} ({ioc.context[:50]}...)" 
+                for ioc in incident_data.indicators_of_compromise[:8]
+            ])
+        else:
+            indicators_info = "None specified"
+
+        # Create vulnerability summary
+        vulnerability_summary = (
+            f"Total: {incident_vulnerability_report.total_vulnerabilities} "
+            f"(Critical: {incident_vulnerability_report.critical_vulnerabilities}, "
+            f"High: {incident_vulnerability_report.high_vulnerabilities}, "
+            f"Medium: {incident_vulnerability_report.medium_vulnerabilities}, "
+            f"Low: {incident_vulnerability_report.low_vulnerabilities})"
+        )
+
+        # Create messages
         system_message = SystemMessage(content=RESEARCH_SYSTEM_PROMPT)
 
         user_prompt = RESEARCH_USER_PROMPT.format(
@@ -119,15 +163,13 @@ class ResearchStage(AgenticStageBase):
             timestamp=datetime.now().isoformat(),
             title=incident_data.title,
             description=incident_data.description,
-            initial_findings="Pre-processed vulnerability data available",
-            affected_assets_info="\n".join(affected_assets_info),
-            observed_ttps_info=[i.model_dump() for i in incident_data.observed_ttps]
-            or "No TTPs provided",
-            indicators_info=[
-                i.model_dump() for i in incident_data.indicators_of_compromise
-            ]
-            or "No indicators provided",
-            vulnerability_report=json.dumps(vulnerability_summary, indent=2),
+            affected_assets_summary="\n".join(affected_assets_summary) if affected_assets_summary else "No assets specified",
+            top_cves_list="\n".join(top_cves_list) if top_cves_list else "No high-severity CVEs found",
+            recent_cves_list="\n".join(recent_cves_list) if recent_cves_list else "No recent CVEs found",
+            cpe_list="\n".join(cpe_list) if cpe_list else "No CPE strings available",
+            observed_ttps_info=observed_ttps_info,
+            indicators_info=indicators_info,
+            vulnerability_summary=vulnerability_summary,
         )
 
         user_message = HumanMessage(content=user_prompt)
@@ -151,14 +193,20 @@ class ResearchStage(AgenticStageBase):
     async def _handle_forced_termination(self, **kwargs) -> ResearchValidationResult:
         """Handle forced termination when max iterations are reached"""
         self.logger.info("Executing forced research submission")
-        
+
         # Apply context window management before forced termination
         if self.context_window_manager and self.stage_config.compression_config:
-            processed_messages, was_compressed = await self.context_window_manager.manage_context_window(
-                messages=self.messages,
-                compression_config=self.stage_config.compression_config,
-                model_name=self.stage_config.llm_config.model_name if self.stage_config.llm_config else "default",
-                available_tools={}  # No compression tool needed for forced termination
+            processed_messages, was_compressed = (
+                await self.context_window_manager.manage_context_window(
+                    messages=self.messages,
+                    compression_config=self.stage_config.compression_config,
+                    model_name=(
+                        self.stage_config.llm_config.model_name
+                        if self.stage_config.llm_config
+                        else "default"
+                    ),
+                    available_tools={},  # No compression tool needed for forced termination
+                )
             )
 
             if was_compressed:
@@ -193,10 +241,12 @@ class ResearchStage(AgenticStageBase):
             )
 
         # Execute tools, expecting the research submission tool to be called
-        tool_messages, termination_result, has_validation_error = await self.tool_manager.execute_tools(
-            response, 
-            lambda args: self._inject_stage_specific_args(args, **kwargs),
-            [RESEARCH_SUBMISSION_TOOL_NAME]
+        tool_messages, termination_result, has_validation_error = (
+            await self.tool_manager.execute_tools(
+                response,
+                lambda args: self._inject_stage_specific_args(args, **kwargs),
+                [RESEARCH_SUBMISSION_TOOL_NAME],
+            )
         )
 
         # Add the tool messages to messages
@@ -211,10 +261,14 @@ class ResearchStage(AgenticStageBase):
             self.messages.append(retry_message)
 
             # Signal that a retry is needed due to validation error
-            raise ValidationRetryNeeded("Research submission had validation errors, retry needed")
+            raise ValidationRetryNeeded(
+                "Research submission had validation errors, retry needed"
+            )
 
         if not termination_result:
-            raise ValueError("Research submission tool was called but did not return a result")
+            raise ValueError(
+                "Research submission tool was called but did not return a result"
+            )
 
         return termination_result
 

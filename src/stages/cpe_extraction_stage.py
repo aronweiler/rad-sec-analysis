@@ -42,7 +42,7 @@ class CPEExtractionStage(AgenticStageBase):
         self.all_incidents = []
         self.current_batch_incidents = []
 
-    async def run(self, incidents: List[ParseResult]) -> List[IncidentData]:
+    async def run(self, parse_results: List[ParseResult]) -> List[IncidentData]:
         """
         Run the CPE extraction workflow
 
@@ -52,10 +52,13 @@ class CPEExtractionStage(AgenticStageBase):
         Returns:
             List of updated IncidentData objects with populated CPE fields
         """
+        # Remap incidents to incident data
+        incidents = [i.incident for i in parse_results]
+        
         self.logger.info(f"Starting CPE extraction for {len(incidents)} incidents")
 
         # Store incidents for processing
-        self.all_incidents = [i.incident for i in incidents]
+        self.all_incidents = incidents
         self.processed_incidents = []
 
         # Get batch size from stage config
@@ -63,7 +66,8 @@ class CPEExtractionStage(AgenticStageBase):
         self.total_batches = ceil(len(incidents) / batch_size)
 
         self.logger.info(f"Processing {len(incidents)} incidents in {self.total_batches} batches of size {batch_size}")
-        self.logger.info("Note: Batch processing is currently sequential - parallelization planned for future enhancement")
+        
+        # Note: Batch processing is currently sequential - parallelization could be a future enhancement
 
         # Process batches sequentially
         for batch_num in range(self.total_batches):
@@ -83,11 +87,12 @@ class CPEExtractionStage(AgenticStageBase):
                 batch_number=self.current_batch,
                 total_batches=self.total_batches
             )
-
+            
             # Add processed incidents to our result list
             self.processed_incidents.extend(processed_batch)
 
         self.logger.info(f"Completed CPE extraction for all {len(self.processed_incidents)} incidents")
+        
         return self.processed_incidents
 
     def get_required_tools(self) -> List[str]:
@@ -100,17 +105,7 @@ class CPEExtractionStage(AgenticStageBase):
 
     async def _prepare_initial_messages(self, **kwargs) -> List[BaseMessage]:
         """Prepare the initial system and user messages for CPE extraction"""
-        batch_incidents = kwargs["batch_incidents"]
-        batch_number = kwargs["batch_number"]
-        total_batches = kwargs["total_batches"]
-
-        # Count assets and software in this batch
-        asset_count = sum(len(incident.affected_assets) for incident in batch_incidents)
-        software_count = sum(
-            len(asset.installed_software) 
-            for incident in batch_incidents 
-            for asset in incident.affected_assets
-        )
+        batch_incidents = kwargs["batch_incidents"]       
 
         # Create detailed batch information
         batch_details = []
@@ -138,10 +133,6 @@ class CPEExtractionStage(AgenticStageBase):
         system_message = SystemMessage(content=CONSTRUCT_CPES_SYSTEM_PROMPT)
 
         user_prompt = CONSTRUCT_CPES_USER_PROMPT.format(
-            batch_number=batch_number,
-            total_batches=total_batches,
-            asset_count=asset_count,
-            software_count=software_count,
             batch_details="\n".join(batch_details)
         )
 
@@ -160,9 +151,9 @@ class CPEExtractionStage(AgenticStageBase):
                     # Tool was called - check if we have a successful result in the conversation
                     # Look for tool messages in the conversation that indicate success
                     for msg in reversed(self.messages):
-                        if hasattr(msg, 'content') and isinstance(msg.content, str):
+                        if hasattr(msg, 'content') and isinstance(msg.content, str) and msg.type == "tool":
                             # If we see a tool message without validation errors, we can terminate
-                            if "ValidationError" not in msg.content and "validation failed" not in msg.content.lower():
+                            if "Validation error(s)" not in msg.content and "validation error" not in msg.content.lower():
                                 # Successful tool execution - return the current batch
                                 return True, kwargs.get("batch_incidents", [])
 

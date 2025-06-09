@@ -99,8 +99,6 @@ def get_cve_details(cve_id: str) -> str:
         return json.dumps({"error": f"Error getting CVE details: {str(e)}"})
 
 
-
-
 @tool
 def get_recent_cves(days: int = 7, results_per_page: int = 50) -> str:
     """
@@ -147,9 +145,103 @@ def get_recent_cves(days: int = 7, results_per_page: int = 50) -> str:
         return json.dumps({"error": f"Error getting recent CVEs: {str(e)}"})
 
 
-# List of all tools for easy import
+@tool
+def search_cves_by_cpe(cpe_name: str, results_per_page: int = 20) -> str:
+    """
+    Search for CVEs by CPE (Common Platform Enumeration) name.
+
+    Args:
+        cpe_name: CPE name (e.g., "cpe:2.3:a:apache:tomcat:9.0.50:*:*:*:*:*:*:*")
+        results_per_page: Number of results to return (max 2000)
+
+    Returns:
+        JSON string containing CVE search results for the specified CPE
+    """
+    try:
+        nvd_tool = get_nvd_tool()
+        cves = nvd_tool.search_cves_by_cpe(cpe_name, results_per_page)
+
+        if not cves:
+            return json.dumps({"message": f"No CVEs found for CPE: {cpe_name}"})
+
+        # Format results for LLM consumption
+        results = []
+        for cve in cves:
+            result = {
+                "cve_id": cve.cve_id,
+                "description": cve.description,
+                "cvss_v3_score": cve.cvss_v3_score,
+                "cvss_v3_severity": cve.cvss_v3_severity,
+                "published_date": cve.published_date.strftime("%Y-%m-%d"),
+                "references": cve.references[:5],  # Limit references
+                "total_references": len(cve.references),
+                "cpe_matches": cve.cpe_matches[:5],  # Limit CPE matches
+                "total_cpe_matches": len(cve.cpe_matches),
+            }
+            results.append(result)
+
+        return json.dumps(
+            {"cpe_name": cpe_name, "total_found": len(cves), "cves": results}, indent=2
+        )
+
+    except Exception as e:
+        return json.dumps({"error": f"Error searching CVEs by CPE: {str(e)}"})
+
+
+@tool
+def search_cves_by_multiple_cpes(cpe_names: str, results_per_page: int = 20) -> str:
+    """
+    Search for CVEs using multiple CPE names (batch search).
+
+    Args:
+        cpe_names: Comma-separated list of CPE names
+        results_per_page: Number of results per CPE (max 2000)
+
+    Returns:
+        JSON string containing deduplicated CVE search results
+    """
+    try:
+        nvd_tool = get_nvd_tool()
+        cpe_list = [cpe.strip() for cpe in cpe_names.split(",")]
+        cves = nvd_tool.search_cves_by_multiple_cpes(cpe_list, results_per_page)
+
+        if not cves:
+            return json.dumps({"message": f"No CVEs found for CPEs: {cpe_names}"})
+
+        # Format results for LLM consumption
+        results = []
+        for cve in cves:
+            result = {
+                "cve_id": cve.cve_id,
+                "description": cve.description,
+                "cvss_v3_score": cve.cvss_v3_score,
+                "cvss_v3_severity": cve.cvss_v3_severity,
+                "published_date": cve.published_date.strftime("%Y-%m-%d"),
+                "references": cve.references[:3],  # Limit references for batch
+                "total_references": len(cve.references),
+                "cpe_matches": cve.cpe_matches[:3],  # Limit CPE matches for batch
+                "total_cpe_matches": len(cve.cpe_matches),
+            }
+            results.append(result)
+
+        return json.dumps(
+            {
+                "cpe_names": cpe_list,
+                "total_cpes_searched": len(cpe_list),
+                "total_found": len(cves),
+                "cves": results,
+            },
+            indent=2,
+        )
+
+    except Exception as e:
+        return json.dumps({"error": f"Error searching CVEs by multiple CPEs: {str(e)}"})
+
+
 nvd_tools = [
     search_cves_by_keyword,
+    search_cves_by_cpe,
+    search_cves_by_multiple_cpes,
     get_cve_details,
     get_recent_cves,
 ]

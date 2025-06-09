@@ -13,7 +13,8 @@ from difflib import SequenceMatcher
 import json
 
 from langchain_core.tools import tool, InjectedToolArg
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic_core import ErrorDetails
 
 from src.models.incident import IncidentData, AssetData, SoftwareInfo
 
@@ -43,16 +44,34 @@ class CPEValidationResult:
     errors: List[str]
 
 
-@dataclass
-class AssetCPEMapping:
+class AssetCPEMapping(BaseModel):
     """Mapping between asset/software and generated CPE"""
 
-    asset_hostname: str
-    asset_ip: str
-    cpe_string: str
-    cpe_type: str  # 'asset' or 'software'
-    software_name: Optional[str] = None
-    software_version: Optional[str] = None
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "asset_hostname": "web-server-01",
+                "asset_ip": "10.1.1.100",
+                "cpe_string": "cpe:2.3:a:apache:tomcat:9.0.50:*:*:*:*:*:*:*",
+                "cpe_type": "software",
+                "software_name": "Apache Tomcat",
+                "software_version": "9.0.50",
+            }
+        }
+    )
+
+    asset_hostname: str = Field(..., description="Hostname of the asset")
+    asset_ip: str = Field(..., description="IP address of the asset")
+    cpe_string: str = Field(..., description="Generated CPE string in CPE 2.3 format")
+    cpe_type: str = Field(
+        ..., description="Either 'asset' (for OS/hardware) or 'software'"
+    )
+    software_name: Optional[str] = Field(
+        None, description="Name of software (required if cpe_type='software')"
+    )
+    software_version: Optional[str] = Field(
+        None, description="Version of software (required if cpe_type='software')"
+    )
 
 
 class CPEValidator:
@@ -63,58 +82,15 @@ class CPEValidator:
         r"^cpe:2\.3:[aho\*\-]:"  # CPE version and part
         r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # vendor
         r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # product
-        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # version
-        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # update
-        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # edition
-        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # language
-        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # sw_edition
-        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # target_sw
-        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*):"  # target_hw
-        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*)$"  # other
+        r"([a-zA-Z0-9\.\-\_\~\%\*]*|\*)"  # version
+        r"(?::([a-zA-Z0-9\.\-\_\~\%\*]*|\*))?"  # update (optional)
+        r"(?::([a-zA-Z0-9\.\-\_\~\%\*]*|\*))?"  # edition (optional)
+        r"(?::([a-zA-Z0-9\.\-\_\~\%\*]*|\*))?"  # language (optional)
+        r"(?::([a-zA-Z0-9\.\-\_\~\%\*]*|\*))?"  # sw_edition (optional)
+        r"(?::([a-zA-Z0-9\.\-\_\~\%\*]*|\*))?"  # target_sw (optional)
+        r"(?::([a-zA-Z0-9\.\-\_\~\%\*]*|\*))?"  # target_hw (optional)
+        r"(?::([a-zA-Z0-9\.\-\_\~\%\*]*|\*))?$"  # other (optional)
     )
-
-    # Known OS patterns for concrete validation
-    OS_VENDOR_PATTERNS = {
-        "windows": {
-            "vendors": ["microsoft"],
-            "products": [
-                "windows",
-                "windows_server",
-                "windows_10",
-                "windows_11",
-                "windows_server_2019",
-                "windows_server_2022",
-            ],
-        },
-        "linux": {
-            "vendors": ["canonical", "redhat", "centos", "debian", "suse", "oracle"],
-            "products": [
-                "ubuntu",
-                "ubuntu_linux",
-                "rhel",
-                "red_hat_enterprise_linux",
-                "centos",
-                "debian_linux",
-                "suse_linux",
-            ],
-        },
-        "macos": {"vendors": ["apple"], "products": ["macos", "mac_os_x", "mac_os"]},
-        "cisco": {"vendors": ["cisco"], "products": ["ios", "ios_xe", "nx-os", "asa"]},
-    }
-
-    # Known software vendor patterns for concrete validation
-    SOFTWARE_VENDOR_PATTERNS = {
-        "apache": ["tomcat", "httpd", "struts", "kafka", "spark", "maven"],
-        "microsoft": ["iis", "sql_server", "exchange", "sharepoint", "office"],
-        "oracle": ["mysql", "java", "weblogic", "database"],
-        "nginx": ["nginx"],
-        "postgresql": ["postgresql"],
-        "mongodb": ["mongodb"],
-        "redis": ["redis"],
-        "elasticsearch": ["elasticsearch"],
-        "docker": ["docker"],
-        "kubernetes": ["kubernetes"],
-    }
 
     def __init__(self, config: CPEValidationConfig):
         self.config = config
@@ -129,12 +105,16 @@ class CPEValidator:
 
         # Regex validation
         if not self.CPE_23_PATTERN.match(cpe_string):
-            errors.append("CPE does not match CPE 2.3 format specification")
+            errors.append(
+                f"CPE ({cpe_string}) does not match CPE 2.3 format specification"
+            )
 
         # Component count validation
         parts = cpe_string.split(":")
-        if len(parts) != 13:
-            errors.append(f"CPE must have exactly 13 components, found {len(parts)}")
+        if len(parts) > 13 or len(parts) < 5:
+            errors.append(
+                f"CPE ({cpe_string}) must have between 5 and 13 components, found {len(parts)}"
+            )
         else:
             part = parts[2]
             # Validate part (application, hardware, operating system)
@@ -280,7 +260,7 @@ class CPEValidator:
     def _validate_os_vendor_product(
         self, vendor: str, product: str, os_string: str
     ) -> bool:
-        """Concrete validation of OS vendor/product against known patterns"""
+        """Validate OS vendor/product with permissive approach for automation"""
         vendor_lower = vendor.lower()
         product_lower = product.lower()
 
@@ -288,40 +268,23 @@ class CPEValidator:
         if vendor == "*" or product == "*":
             return True
 
-        # Check against known OS patterns
-        for os_type, patterns in self.OS_VENDOR_PATTERNS.items():
-            if any(
-                pattern in os_string for pattern in [os_type] + patterns["products"]
-            ):
-                # Found matching OS type, validate vendor/product
-                if vendor_lower in patterns["vendors"] or any(
-                    prod in product_lower for prod in patterns["products"]
-                ):
-                    return True
+        # Basic sanity checks - catch obvious errors
+        if not vendor or not product or vendor == "" or product == "":
+            return False
 
-        # If no concrete pattern match found, use similarity threshold
-        for os_type, patterns in self.OS_VENDOR_PATTERNS.items():
-            if any(pattern in os_string for pattern in [os_type]):
-                # Check similarity with known vendors/products
-                for known_vendor in patterns["vendors"]:
-                    if (
-                        self._calculate_similarity(vendor_lower, known_vendor)
-                        >= self.config.vendor_product_similarity_threshold
-                    ):
-                        return True
-                for known_product in patterns["products"]:
-                    if (
-                        self._calculate_similarity(product_lower, known_product)
-                        >= self.config.vendor_product_similarity_threshold
-                    ):
-                        return True
+        # Check for obviously invalid characters/patterns
+        invalid_chars = ["<", ">", "script", "javascript", "null", "undefined"]
+        combined = f"{vendor} {product}".lower()
+        if any(invalid in combined for invalid in invalid_chars):
+            return False
 
-        return False
+        # For automation: if it passes basic sanity, accept it
+        return True
 
     def _validate_software_vendor_product(
         self, vendor: str, product: str, software_name: str
     ) -> bool:
-        """Concrete validation of software vendor/product against known patterns"""
+        """Validate software vendor/product with permissive approach for automation"""
         vendor_lower = vendor.lower()
         product_lower = product.lower()
 
@@ -329,35 +292,18 @@ class CPEValidator:
         if vendor == "*" or product == "*":
             return True
 
-        # Check against known software vendor patterns
-        for known_vendor, products in self.SOFTWARE_VENDOR_PATTERNS.items():
-            if any(prod in software_name for prod in products):
-                # Found matching software, validate vendor/product
-                if (
-                    vendor_lower == known_vendor
-                    or any(prod in product_lower for prod in products)
-                    or self._calculate_similarity(vendor_lower, known_vendor)
-                    >= self.config.vendor_product_similarity_threshold
-                ):
-                    return True
+        # Basic sanity checks only
+        if not vendor or not product or vendor == "" or product == "":
+            return False
 
-        # Fallback: check if any significant part of software name appears in vendor or product
-        software_words = [
-            word for word in re.findall(r"\w+", software_name.lower()) if len(word) > 2
-        ]
-        vendor_words = re.findall(r"\w+", vendor_lower)
-        product_words = re.findall(r"\w+", product_lower)
+        # Check for obviously invalid patterns
+        invalid_chars = ["<", ">", "script", "javascript", "null", "undefined"]
+        combined = f"{vendor} {product}".lower()
+        if any(invalid in combined for invalid in invalid_chars):
+            return False
 
-        # Check for word overlap with similarity threshold
-        for sw_word in software_words:
-            for v_word in vendor_words + product_words:
-                if (
-                    self._calculate_similarity(sw_word, v_word)
-                    >= self.config.vendor_product_similarity_threshold
-                ):
-                    return True
-
-        return False
+        # For automation: accept if it passes basic sanity
+        return True
 
 
 def extract_assets_and_software(
@@ -390,16 +336,14 @@ def extract_assets_and_software(
 
 @tool
 def generate_cpes_for_batch(
-    asset_mappings: List[Dict[str, Any]],
+    asset_mappings: List[AssetCPEMapping],
     incident_data: Annotated[List[IncidentData], InjectedToolArg],
     validation_config: Annotated[Optional[Dict[str, Any]], InjectedToolArg] = None,
-) -> List[IncidentData]:
+) -> str:
     """
     Generate and validate CPE strings for a batch of assets and software.
 
-    This tool processes asset and software information to generate CPE (Common Platform Enumeration)
-    strings following the CPE 2.3 specification. It includes comprehensive validation to ensure
-    data integrity and prevent hallucinations.
+    Use this tool to process a batch of asset and software data, generating CPE strings.
 
     Args:
         asset_mappings: List of asset/software to CPE mappings. Each mapping should contain:
@@ -409,32 +353,6 @@ def generate_cpes_for_batch(
             - cpe_type: Either 'asset' (for OS/hardware) or 'software'
             - software_name: Name of software (required if cpe_type='software')
             - software_version: Version of software (required if cpe_type='software')
-        incident_data: List of incident data objects (injected automatically)
-        validation_config: Validation configuration with thresholds (injected automatically)
-
-    Returns:
-        List of updated IncidentData objects with populated CPE fields
-
-    Raises:
-        ValidationError: If CPE validation fails
-
-    Example asset_mappings format:
-    [
-        {
-            "asset_hostname": "web-server-01",
-            "asset_ip": "10.1.1.100",
-            "cpe_string": "cpe:2.3:o:microsoft:windows_server_2019:*:*:*:*:*:*:*:*",
-            "cpe_type": "asset"
-        },
-        {
-            "asset_hostname": "web-server-01",
-            "asset_ip": "10.1.1.100",
-            "cpe_string": "cpe:2.3:a:apache:tomcat:9.0.50:*:*:*:*:*:*:*",
-            "cpe_type": "software",
-            "software_name": "Apache Tomcat",
-            "software_version": "9.0.50"
-        }
-    ]
     """
     logger.info(
         f"Processing CPE generation for {len(asset_mappings)} mappings across {len(incident_data)} incidents"
@@ -469,23 +387,16 @@ def generate_cpes_for_batch(
     validated_mappings = []
     validation_errors = []
 
-    for i, mapping_dict in enumerate(asset_mappings):
+    for i, mapping in enumerate(asset_mappings):
         try:
-            # Convert dict to AssetCPEMapping
-            mapping = AssetCPEMapping(
-                asset_hostname=mapping_dict.get("asset_hostname", ""),
-                asset_ip=mapping_dict.get("asset_ip", ""),
-                software_name=mapping_dict.get("software_name"),
-                software_version=mapping_dict.get("software_version"),
-                cpe_string=mapping_dict.get("cpe_string", ""),
-                cpe_type=mapping_dict.get("cpe_type", "asset"),
-            )
-
             # Validate CPE format
             format_validation = validator.validate_cpe_format(mapping.cpe_string)
             if not format_validation.is_valid:
                 validation_errors.extend(
-                    [f"Mapping {i+1}: {error}" for error in format_validation.errors]
+                    [
+                        f"asset_mappings_{i} - {error}"
+                        for error in format_validation.errors
+                    ]
                 )
                 continue
 
@@ -497,7 +408,7 @@ def generate_cpes_for_batch(
 
             if lookup_key not in lookup_map:
                 validation_errors.append(
-                    f"Mapping {i+1}: No matching asset/software found for {lookup_key}"
+                    f"asset_mappings_{i} - No matching asset/software found for {lookup_key}"
                 )
                 continue
 
@@ -509,14 +420,17 @@ def generate_cpes_for_batch(
             )
             if not linkage_validation.is_valid:
                 validation_errors.extend(
-                    [f"Mapping {i+1}: {error}" for error in linkage_validation.errors]
+                    [
+                        f"asset_mappings_{i} - {error}"
+                        for error in linkage_validation.errors
+                    ]
                 )
                 continue
 
             validated_mappings.append(mapping)
 
         except Exception as e:
-            validation_errors.append(f"Mapping {i+1}: Validation error: {str(e)}")
+            validation_errors.append(f"asset_mappings_{i} - Validation error: {str(e)}")
 
     # If there are validation errors, raise ValidationError
     if validation_errors:
@@ -525,18 +439,30 @@ def generate_cpes_for_batch(
             + "\n".join(validation_errors)
         )
         logger.error(error_msg)
-        raise ValidationError(error_msg)
+
+        # Create line_errors in the correct format
+        line_errors = []
+        for i, error in enumerate(validation_errors):
+            line_errors.append(
+                {
+                    "type": "value_error",
+                    "loc": ("cpe_validation", f"error_{i}"),
+                    "msg": f"Value error, {error}",
+                    "input": None,
+                    "ctx": {"error": error},
+                }
+            )
+
+        raise ValidationError.from_exception_data(
+            title="CPEValidation", line_errors=line_errors
+        )
 
     logger.info(f"Successfully validated {len(validated_mappings)} CPE mappings")
 
-    # Apply validated CPE mappings to incident data
-    updated_incidents = []
+    # Apply validated CPE mappings to incident data (modifying in place)
     for incident in incident_data:
-        # Create a copy of the incident to avoid modifying the original
-        updated_incident = incident.model_copy(deep=True)
-
-        # Update assets with CPE data
-        for asset in updated_incident.affected_assets:
+        # Update assets with CPE data directly
+        for asset in incident.affected_assets:
             # Find asset-level CPEs
             asset_cpes = [
                 m
@@ -565,27 +491,25 @@ def generate_cpes_for_batch(
                         0
                     ].cpe_string  # Take the first match
 
-        updated_incidents.append(updated_incident)
-
     # Log summary
     total_asset_cpes = sum(
         len(asset.cpe_strings)
-        for incident in updated_incidents
+        for incident in incident_data
         for asset in incident.affected_assets
     )
     total_software_cpes = sum(
         1
-        for incident in updated_incidents
+        for incident in incident_data
         for asset in incident.affected_assets
         for software in asset.installed_software
         if software.cpe_string
     )
 
     logger.info(
-        f"Applied {total_asset_cpes} asset CPEs and {total_software_cpes} software CPEs to {len(updated_incidents)} incidents"
+        f"Applied {total_asset_cpes} asset CPEs and {total_software_cpes} software CPEs to {len(incident_data)} incidents"
     )
 
-    return updated_incidents
+    return "Successfully generated and validated CPEs for the batch"
 
 
 generate_cpes_tools = [generate_cpes_for_batch]

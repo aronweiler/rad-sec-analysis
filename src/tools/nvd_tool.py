@@ -159,26 +159,108 @@ class NVDTool:
                 return []
 
     def search_cves_by_cpe(
-        self, cpe_name: str, results_per_page: int = 20
+        self,
+        cpe_name: str,
+        results_per_page: int = 20,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> List[CVEInfo]:
         """
-        Search for CVEs by CPE (Common Platform Enumeration) name
+        Search for CVEs by CPE (Common Platform Enumeration) name with optional date filtering
 
         Args:
             cpe_name: CPE name (e.g., "cpe:2.3:a:apache:tomcat:9.0.50:*:*:*:*:*:*:*")
             results_per_page: Number of results per page
+            start_date: Optional start date for filtering
+            end_date: Optional end date for filtering
 
         Returns:
             List of CVE information objects
         """
         params = {"cpeName": cpe_name, "resultsPerPage": min(results_per_page, 2000)}
 
+        # Add date filtering if provided (same logic as keyword search)
+        if start_date and end_date:
+            # Ensure end_date is not in the future
+            now = datetime.now(timezone.utc)
+            if end_date > now:
+                end_date = now - timedelta(minutes=5)
+
+            # Check if date range exceeds 120 days
+            date_diff = (end_date - start_date).days
+            if date_diff > 120:
+                self.logger.warning(
+                    f"Date range ({date_diff} days) exceeds NVD API limit of 120 days. Truncating to 120 days."
+                )
+                start_date = end_date - timedelta(days=120)
+
+            # Format dates in UTC
+            params["pubStartDate"] = start_date.strftime("%Y-%m-%dT%H:%M:%S.000")
+            params["pubEndDate"] = end_date.strftime("%Y-%m-%dT%H:%M:%S.000")
+
         try:
             data = self._make_request(params)
             return self.parse_cve_response(data)
-        except Exception as e:
-            self.logger.error(f"Failed to search CVEs for CPE '{cpe_name}': {e}")
-            return []
+        except requests.RequestException as e:
+            # If date filtering fails, try without dates as fallback
+            if start_date or end_date:
+                self.logger.warning(
+                    f"Date-filtered CPE search failed for '{cpe_name}', retrying without dates: {e}"
+                )
+                fallback_params = {
+                    "cpeName": cpe_name,
+                    "resultsPerPage": min(results_per_page, 2000),
+                }
+                try:
+                    data = self._make_request(fallback_params)
+                    return self.parse_cve_response(data)
+                except Exception as fallback_e:
+                    self.logger.error(
+                        f"Fallback CPE search also failed for '{cpe_name}': {fallback_e}"
+                    )
+                    return []
+            else:
+                self.logger.error(f"Failed to search CVEs for CPE '{cpe_name}': {e}")
+                return []
+
+    def search_cves_by_multiple_cpes(
+        self,
+        cpe_names: List[str],
+        results_per_page: int = 20,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[CVEInfo]:
+        """
+        Search for CVEs using multiple CPE names (batch search)
+
+        Args:
+            cpe_names: List of CPE names to search
+            results_per_page: Total number of results per CPE
+            start_date: Optional start date for filtering
+            end_date: Optional end date for filtering
+
+        Returns:
+            Deduplicated list of CVE information objects
+        """
+        all_cves = []
+        seen_cve_ids = set()
+
+        for cpe_name in cpe_names:
+            try:
+                cves = self.search_cves_by_cpe(
+                    cpe_name, results_per_page, start_date, end_date
+                )
+
+                for cve in cves:
+                    if cve.cve_id not in seen_cve_ids:
+                        all_cves.append(cve)
+                        seen_cve_ids.add(cve.cve_id)
+
+            except Exception as e:
+                self.logger.warning(f"Failed to search CVEs for CPE '{cpe_name}': {e}")
+                continue
+
+        return all_cves
 
     def get_cve_by_id(self, cve_id: str) -> Optional[CVEInfo]:
         """
