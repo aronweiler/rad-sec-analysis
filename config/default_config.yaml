@@ -1,0 +1,191 @@
+# RAD Security Analysis - Default Configuration
+# This configuration supports dynamic LLM selection per stage, along with some other configurations.
+
+# Global Application Settings
+debug: false
+log_level: "INFO"
+
+incident_parser: "json_v1"
+
+# Token Management
+global_token_budget: null  # No global limit by default
+enable_token_tracking: true
+
+# Caching Configuration
+cache_backend: "memory"
+cache_config:
+  memory:
+    max_size: 1000
+    ttl_seconds: 3600
+  # these are not used, but included for completeness
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+  file:
+    cache_dir: "./cache"
+    max_files: 1000
+
+# Stage Configurations
+# Each stage can use a different LLM provider and model (or none at all).
+stages:
+  # cpe_extraction:
+  #   stage: "cpe_extraction"
+  #   enabled: true
+  #   llm_config:
+  #     provider: "ollama"
+  #     model_name: "qwen2.5:7b"  
+  #     temperature: 0  # Deterministic for consistent CPE generation
+  #     max_tokens: 4096
+  #     timeout: 60  # Longer timeout for batch processing
+  #     max_retries: 5
+  #     extra_params:
+  #       format: "json"
+  #       top_p: 0.9
+  #   max_final_retries: 3
+  #   max_iterations: 1  # Auto-terminate after one iteration, since we're processing all of the incidents at once (stage will batch them)
+  #   available_tools: ["generate_cpes_for_batch"]
+  #   settings:
+  #     # Batch processing configuration
+  #     asset_batch_size: 5  # Number of incidents per batch
+
+  #     # Validation thresholds for preventing hallucinations
+  #     hostname_similarity_threshold: 0.8
+  #     software_name_similarity_threshold: 0.7
+  #     software_version_similarity_threshold: 0.8
+  #     vendor_product_similarity_threshold: 0.6
+
+  #     # Validation strictness settings
+  #     strict_ip_matching: true  # Require exact IP address matches
+  #     strict_hostname_matching: false  # Allow similarity-based hostname matching
+
+  cpe_extraction:
+    stage: "cpe_extraction"
+    enabled: true
+    llm_config:
+      # provider: "openai"
+      # model_name: "gpt-4o-mini"  
+      provider: "ollama"            
+      model_name: "qwen2.5:14b"      
+      temperature: 0  # Deterministic for consistent CPE generation
+      max_tokens: 4096
+      timeout: 60  # Longer timeout for batch processing
+      max_retries: 5
+      extra_params:
+        top_p: 0.9
+        # format: "json" # for ollama
+    max_final_retries: 3
+    max_iterations: 1  # Auto-terminate after one iteration, since we're processing all of the incidents at once (stage will batch them)
+    available_tools: ["generate_cpes_for_batch"]
+    settings:
+      # Batch processing configuration
+      asset_batch_size: 5  # Number of incidents per batch
+
+      # Validation thresholds for preventing hallucinations
+      hostname_similarity_threshold: 0.8
+      software_name_similarity_threshold: 0.7
+      software_version_similarity_threshold: 0.8
+      vendor_product_similarity_threshold: 0.6
+
+      # Validation strictness settings
+      strict_ip_matching: true  # Require exact IP address matches
+      strict_hostname_matching: false  # Allow similarity-based hostname matching
+
+  
+  incident_pre_processing:
+    stage: "incident_pre_processing"
+    enabled: true
+    settings:
+      strict_version_matching: true # strict version matching for CVEs
+      max_cves_per_software: 2000 # Max CVEs capable of being returned by NVD database in one call
+      max_age_days: 180 # Maximum age of CVEs to consider
+      prioritize_recent_days: 30 # Prioritize CVEs from the last 30 days
+      min_relevance_score: 0.7 # Minimum relevance score for CVEs
+      lookback_years: 2 # Look back at most 2 years for CVEs
+      post_incident_days: 90 # Post-incident day CVEs to consider
+      cpe_search_priority: true # Prioritize CPE-based searches
+      cpe_relevance_boost: 0.3 # Boost relevance score for CPE matches
+      max_cpes_per_search: 10 # Max CPEs to use per search
+      cpe_only_mode: true # Only use CPEs for searches (more restrictive, but more accurate)
+      min_version_confidence: 0.8 # High confidence for version matching with CPEs
+
+  incident_research:
+    stage: "incident_research"
+    enabled: true
+    llm_config:
+      provider: "openai"
+      model_name: "gpt-4o-mini"
+      temperature: 0 # Deterministic as possible
+      max_tokens: 4096
+      timeout: 30
+      max_retries: 10
+      extra_params:
+        top_p: 0.9
+        frequency_penalty: 0.0
+    max_final_retries: 3
+    max_iterations: 3
+    available_tools: ["search_cves_by_cpe", "get_cve_details", "submit_research"]    
+    available_mcp_servers: ["vulnerability_intelligence"]
+    compression_config:
+      enabled: true
+      token_threshold: 50000
+      compression_llm_config:
+        provider: "openai"
+        model_name: "gpt-4o-mini"  # Faster, cheaper model for compression
+        temperature: 0
+        max_tokens: 4096
+        timeout: 30
+        max_retries: 3
+      fallback_strategy: "intelligent_prompt"
+      preserve_last_n_messages: 5
+      preserve_system_messages: true
+      max_compression_retries: 3
+
+  incident_analysis:
+    stage: "incident_analysis"
+    enabled: true
+    llm_config:
+      provider: "openai"
+      model_name: "gpt-4o"
+      temperature: 0 # Deterministic as possible
+      max_tokens: 8192
+      timeout: 30
+      max_retries: 10
+      extra_params:
+        top_p: 0.9
+    max_final_retries: 3
+    max_iterations: 2
+    # available_tools: ["web_search", "web_scrape"] # These hypothetical tools could be used for real-time info gathering
+    available_tools: ["submit_analysis"]
+    compression_config:
+      enabled: true
+      token_threshold: 50000
+      compression_llm_config:
+        provider: "openai"
+        model_name: "gpt-4o-mini"  # Faster, cheaper model for compression
+        temperature: 0
+        max_tokens: 4096
+        timeout: 30
+        max_retries: 3
+      fallback_strategy: "intelligent_prompt"
+      preserve_last_n_messages: 5
+      preserve_system_messages: true
+      max_compression_retries: 3      
+
+  report_generation:
+    stage: "report_generation"
+    enabled: true
+    settings:
+      output_directory: "./reports"
+
+# MCP Server Configurations
+mcp_servers:
+  vulnerability_intelligence:
+    name: "vulnerability_intelligence"
+    host: "localhost"  
+    port: 8000
+    transport_type: "streamable_http"
+    command: []  # Not needed for external server
+    enabled: true
+    timeout: 30
+    env_vars: {}
