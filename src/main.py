@@ -347,21 +347,26 @@ async def main():
 
         # Evaluate each of the parsed incidents
         for incident in incidents:
-            # Initial stage input is the incident we're on
-            stage_input = incident
+            try:
+                logger.info(f"Processing incident: {incident.incident_id}...")
+                
+                # Initial stage input is the incident we're on
+                stage_input = incident
 
-            # Run each stage sequentially
-            for stage in stages:
-                logger.info(f"Running stage: {stage.stage_type.value}")
+                # Run each stage sequentially
+                for stage in stages:
+                    logger.info(f"Running stage: {stage.stage_type.value}")
 
-                # Pass input to stage - handle both single values and tuples
-                if isinstance(stage_input, tuple):
-                    stage_output = await stage.run(*stage_input)
-                else:
-                    stage_output = await stage.run(stage_input)
+                    # Pass input to stage - handle both single values and tuples
+                    if isinstance(stage_input, tuple):
+                        stage_output = await stage.run(*stage_input)
+                    else:
+                        stage_output = await stage.run(stage_input)
 
-                # Prepare input for next stage
-                stage_input = stage_output
+                    # Prepare input for next stage
+                    stage_input = stage_output
+            except Exception as e:
+                logger.error(f"Error processing incident {incident.incident_id}: {e}")                
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)

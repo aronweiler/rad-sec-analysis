@@ -10,6 +10,8 @@ from typing import Any, Awaitable, Callable, List, Optional, Tuple
 from langchain.base_language import BaseLanguageModel
 from langchain_core.messages import BaseMessage, AIMessage
 
+from ...core.llm_utilities import llm_invoke_with_retry
+
 from ...core.context_window_manager import ContextWindowManager
 from ...models.stage_config import CompressionConfig
 
@@ -99,7 +101,7 @@ class AgenticLoopController(ErrorRecoveryMixin):
             messages.extend(processed_messages)
 
         # Get LLM response
-        response = await llm_with_tools.ainvoke(messages)
+        response = await llm_invoke_with_retry(llm_with_tools, messages)
         messages.append(response)
 
         # Handle case where LLM doesn't call any tools
@@ -311,7 +313,7 @@ class AgenticLoopController(ErrorRecoveryMixin):
             messages.extend(processed_messages)
 
         # Get new response
-        new_response = await llm_with_tools.ainvoke(messages)
+        new_response = await llm_invoke_with_retry(llm_with_tools, messages)
         messages.append(new_response)
 
         # Increment iteration and continue loop

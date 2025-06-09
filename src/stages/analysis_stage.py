@@ -11,6 +11,8 @@ from typing import Any, List, Optional, Tuple
 
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 
+from ..core.llm_utilities import llm_invoke_with_retry
+
 from ..models.application_config import ApplicationConfig
 from ..models.incident import IncidentData
 from ..models.stage_config import Stage
@@ -211,7 +213,7 @@ class AnalysisStage(AgenticStageBase):
         llm_with_tools = self.llm.bind_tools([get_tool(ANALYSIS_SUBMISSION_TOOL_NAME)])
 
         # Re-invoke the LLM with the final submission prompt
-        response = await llm_with_tools.ainvoke(self.messages)
+        response = await llm_invoke_with_retry(llm_with_tools, self.messages)
         self.messages.append(response)
 
         # If there are no tool calls, raise an error
