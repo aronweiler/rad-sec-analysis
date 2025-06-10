@@ -14,8 +14,9 @@ async def llm_invoke_with_retry(
     messages: Union[List[BaseMessage], List[Dict[str, Any]]],
     config: Optional[Dict[str, Any]] = None,
     max_retries: int = 5,
-    initial_wait: float = 15.0,
-    backoff_multiplier: float = 2.0,
+    initial_wait: float = 5,
+    backoff_multiplier: float = 1.5,
+    rate_limit_wait: float = 90.0,  # Longer wait for rate limits
     **kwargs,
 ) -> Any:
     """
@@ -60,6 +61,32 @@ async def llm_invoke_with_retry(
 
         except Exception as e:
             last_exception = e
+
+            # Check if this is a rate limit error
+            is_rate_limit = (
+                "rate limit" in str(e).lower()
+                or "429" in str(e)
+                or "too many requests" in str(e).lower()
+            )
+
+            if is_rate_limit:
+                wait_time = rate_limit_wait
+                logging.warning(f"Rate limit detected. Waiting {wait_time} seconds...")
+            else:
+                wait_time = initial_wait * (backoff_multiplier**attempt)
+                
+            # Fix the inevitable issue with no tool calls but has tool calls
+            is_no_response_message = (
+                "did not have response" in str(e).lower()
+                or "The following tool_call_ids" in str(e)
+            )
+            if is_no_response_message:
+                # Strip off the last AIMessage if it exists
+                if messages and isinstance(messages[-1], BaseMessage) and messages[-1].type == "ai":
+                    logging.warning(
+                        "No response message detected, removing last AIMessage from messages."
+                    )
+                    messages.pop()
 
             # If this was the last attempt, don't wait and re-raise
             if attempt == max_retries:

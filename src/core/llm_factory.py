@@ -63,7 +63,7 @@ class LLMFactory:
             "model": config.model_name,
             "temperature": config.temperature,
             "timeout": config.timeout,
-            "max_retries": config.max_retries,
+            "max_retries": 0, # disabled in favor of my own retries config.max_retries,
         }
         
         # Add optional parameters
@@ -91,7 +91,7 @@ class LLMFactory:
             "model": config.model_name,
             "temperature": config.temperature,
             "timeout": config.timeout,
-            "max_retries": config.max_retries,
+            "max_retries": 0, # disabled in favor of my own retries config.max_retries,
         }
         
         # Add optional parameters
@@ -119,7 +119,7 @@ class LLMFactory:
             "deployment_name": config.model_name,
             "temperature": config.temperature,
             "timeout": config.timeout,
-            "max_retries": config.max_retries,
+            "max_retries": 0, # disabled in favor of my own retries config.max_retries,
         }
         
         # Add optional parameters
@@ -155,7 +155,7 @@ class LLMFactory:
             "model": config.model_name,
             "temperature": config.temperature,
             "timeout": config.timeout,
-            "max_retries": config.max_retries,
+            "max_retries": 0, # disabled in favor of my own retries config.max_retries,
         }
         
         # Add optional parameters

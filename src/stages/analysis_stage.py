@@ -6,6 +6,7 @@ Agentic stage focused on synthesizing research findings into comprehensive secur
 
 from copy import deepcopy
 from datetime import datetime
+from functools import partial
 import json
 from typing import Any, List, Optional, Tuple
 
@@ -65,6 +66,15 @@ class AnalysisStage(AgenticStageBase):
 
         self.research_results = (
             research_results  # Store research results for access in other methods
+        )
+
+        context_window_manager_with_incident = partial(
+            self.context_window_manager.manage_context_window,
+            incident_data=incident_data,
+        )
+
+        self.loop_controller.context_window_manager_func = (
+            context_window_manager_with_incident
         )
 
         return (
@@ -190,7 +200,7 @@ class AnalysisStage(AgenticStageBase):
                         if self.stage_config.llm_config
                         else "default"
                     ),
-                    available_tools={},  # No compression tool needed for forced termination
+                    incident_data=kwargs.get("incident_data", None),
                 )
             )
 

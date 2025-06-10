@@ -5,6 +5,7 @@ Agentic stage for generating CPE (Common Platform Enumeration) strings from secu
 Processes incidents in batches and auto-terminates when all incidents are processed.
 """
 
+from functools import partial
 import logging
 from typing import Any, List, Optional, Tuple
 from math import ceil
