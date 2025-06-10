@@ -315,10 +315,10 @@ For issues and questions:
 1. Check the troubleshooting section above
 2. Review the logs for detailed error information
 3. Ensure all prerequisites are properly configured
-4. [Add contact information or issue tracker details]
+4. Email aronweiler@gmail.com
 
-© 2025 Aron Weiler. All rights reserved.
+***© 2025 Aron Weiler. All rights reserved.***
 
-This software is provided for evaluation purposes only.
+*This software is provided for evaluation purposes only.
 Commercial use, modification, or distribution is prohibited 
-without explicit written permission from Aron Weiler.
+without explicit written permission from Aron Weiler.*
