@@ -100,9 +100,9 @@ stages:
     compression_config:
       enabled: true
       use_compression_tool: true
-      token_threshold: 25000
-      chunk_token_limit: 16384
-      final_token_limit: 8192
+      token_threshold: 64000  # Compress if total tokens exceed this threshold
+      chunk_token_limit: 16384 # Limit each chunk to 16k tokens
+      final_token_limit: 8192 # Final output should not exceed 8k tokens
       compression_llm_config:
         provider: "openai"
         model_name: "gpt-4o-mini"  # Faster, cheaper model for compression
@@ -134,9 +134,9 @@ stages:
     compression_config:
       enabled: true
       use_compression_tool: true
-      token_threshold: 25000
-      chunk_token_limit: 16384
-      final_token_limit: 8192
+      token_threshold: 64000  # Compress if total tokens exceed this threshold
+      chunk_token_limit: 16384 # Limit each chunk to 16k tokens
+      final_token_limit: 8192 # Final output should not exceed 8k tokens
       compression_llm_config:
         provider: "openai"
         model_name: "gpt-4o-mini"  # Faster, cheaper model for compression
