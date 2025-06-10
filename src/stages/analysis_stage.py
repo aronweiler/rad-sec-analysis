@@ -67,13 +67,15 @@ class AnalysisStage(AgenticStageBase):
         self.research_results = (
             research_results  # Store research results for access in other methods
         )
-        
+
         context_window_manager_with_incident = partial(
             self.context_window_manager.manage_context_window,
-            incident_data=incident_data 
+            incident_data=incident_data,
         )
-        
-        self.loop_controller.context_window_manager_func = context_window_manager_with_incident
+
+        self.loop_controller.context_window_manager_func = (
+            context_window_manager_with_incident
+        )
 
         return (
             await self.execute_agentic_workflow(
@@ -197,7 +199,8 @@ class AnalysisStage(AgenticStageBase):
                         self.stage_config.llm_config.model_name
                         if self.stage_config.llm_config
                         else "default"
-                    )
+                    ),
+                    incident_data=kwargs.get("incident_data", None),
                 )
             )
 

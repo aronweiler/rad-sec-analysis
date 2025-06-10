@@ -234,7 +234,8 @@ class ResearchStage(AgenticStageBase):
                         self.stage_config.llm_config.model_name
                         if self.stage_config.llm_config
                         else "default"
-                    )
+                    ),
+                    incident_data=kwargs.get("incident_data", None),
                 )
             )
 

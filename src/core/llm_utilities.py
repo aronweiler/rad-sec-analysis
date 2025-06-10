@@ -74,6 +74,19 @@ async def llm_invoke_with_retry(
                 logging.warning(f"Rate limit detected. Waiting {wait_time} seconds...")
             else:
                 wait_time = initial_wait * (backoff_multiplier**attempt)
+                
+            # Fix the inevitable issue with no tool calls but has tool calls
+            is_no_response_message = (
+                "did not have response" in str(e).lower()
+                or "The following tool_call_ids" in str(e)
+            )
+            if is_no_response_message:
+                # Strip off the last AIMessage if it exists
+                if messages and isinstance(messages[-1], BaseMessage) and messages[-1].type == "ai":
+                    logging.warning(
+                        "No response message detected, removing last AIMessage from messages."
+                    )
+                    messages.pop()
 
             # If this was the last attempt, don't wait and re-raise
             if attempt == max_retries:
